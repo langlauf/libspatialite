@@ -47,7 +47,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#ifdef SPL_AMALGAMATION	/* spatialite-amalgamation */
+#ifdef SPL_AMALGAMATION		/* spatialite-amalgamation */
 #include <spatialite/sqlite3.h>
 #else
 #include <sqlite3.h>
@@ -110698,7 +110698,7 @@ spatial_ref_sys_count (sqlite3 * handle)
     return count;
 }
 
-SPATIALITE_DECLARE void
+SPATIALITE_DECLARE int
 spatial_ref_sys_init (sqlite3 * handle, int verbose)
 {
 /* populating the EPSG dataset into the SPATIAL_REF_SYS table */
@@ -110706,27 +110706,28 @@ spatial_ref_sys_init (sqlite3 * handle, int verbose)
       {
 	  if (verbose)
 	      fprintf (stderr, "the SPATIAL_REF_SYS table doesn't exists\n");
-	  return;
+	  return 0;
       }
     if (!check_spatial_ref_sys (handle))
       {
 	  if (verbose)
 	      fprintf (stderr,
 		       "the SPATIAL_REF_SYS table has an unsupported layout\n");
-	  return;
+	  return 0;
       }
     if (spatial_ref_sys_count (handle))
       {
 	  if (verbose)
 	      fprintf (stderr,
 		       "the SPATIAL_REF_SYS table already contains some row(s)\n");
-	  return;
+	  return 0;
       }
     if (populate_spatial_ref_sys (handle))
       {
 	  if (verbose)
 	      fprintf (stderr,
 		       "OK: the SPATIAL_REF_SYS table was succesfully populated\n");
-	  return;
+	  return 1;
       }
+    return 0;
 }
