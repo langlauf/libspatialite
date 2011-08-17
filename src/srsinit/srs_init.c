@@ -2,7 +2,7 @@
 
  srs_init.c -- populating the SPATIAL_REF_SYS table
 
- version 2.4, 2010 April 5
+ version 3.0, 2011 July 20
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -198,7 +198,7 @@ static void
 initialize_epsg_00 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2000, "epsg", 2000,
 		      "Anguilla 1957 / British West Indies Grid");
@@ -4136,7 +4136,7 @@ static void
 initialize_epsg_01 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2137, "epsg", 2137, "Accra / TM 1 NW");
     add_proj4text (p, 0,
@@ -8302,7 +8302,7 @@ static void
 initialize_epsg_02 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2274, "epsg", 2274,
 		      "NAD83 / Tennessee (ftUS)");
@@ -12099,7 +12099,7 @@ static void
 initialize_epsg_03 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2415, "epsg", 2415,
 		      "Beijing 1954 / 3-degree Gauss-Kruger zone 39");
@@ -16007,7 +16007,7 @@ static void
 initialize_epsg_04 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2543, "epsg", 2543,
 		      "Pulkovo 1942 / 3-degree Gauss-Kruger zone 27");
@@ -19922,7 +19922,7 @@ static void
 initialize_epsg_05 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2671, "epsg", 2671,
 		      "Pulkovo 1995 / 3-degree Gauss-Kruger zone 37");
@@ -24051,7 +24051,7 @@ static void
 initialize_epsg_06 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2799, "epsg", 2799,
 		      "NAD83(HARN) / Kentucky South");
@@ -28453,7 +28453,7 @@ static void
 initialize_epsg_07 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 2927, "epsg", 2927,
 		      "NAD83(HARN) / Washington South (ftUS)");
@@ -32265,7 +32265,7 @@ static void
 initialize_epsg_08 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3061, "epsg", 3061,
 		      "Porto Santo 1995 / UTM zone 28N");
@@ -36249,7 +36249,7 @@ static void
 initialize_epsg_09 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3193, "epsg", 3193,
 		      "LGD2006 / Libya TM zone 8");
@@ -40459,7 +40459,7 @@ static void
 initialize_epsg_10 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3322, "epsg", 3322,
 		      "IGC 1962 / Congo TM zone 20");
@@ -44518,7 +44518,7 @@ static void
 initialize_epsg_11 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3450, "epsg", 3450,
 		      "JAD2001 / UTM zone 18N");
@@ -49055,7 +49055,7 @@ static void
 initialize_epsg_12 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3578, "epsg", 3578, "NAD83 / Yukon Albers");
     add_proj4text (p, 0,
@@ -53739,7 +53739,7 @@ static void
 initialize_epsg_13 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3706, "epsg", 3706,
 		      "NAD83(NSRS2007) / UTM zone 59N");
@@ -57715,7 +57715,7 @@ static void
 initialize_epsg_14 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 3852, "epsg", 3852, "RSRGD2000 / DGLC2000");
     add_proj4text (p, 0,
@@ -60679,7 +60679,7 @@ static void
 initialize_epsg_15 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 4140, "epsg", 4140, "NAD83(CSRS98)");
     add_proj4text (p, 0,
@@ -62557,7 +62557,7 @@ initialize_epsg_16 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
     struct epsg_defs *p;
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     p = add_epsg_def (first, last, 4272, "epsg", 4272, "NZGD49");
     add_proj4text (p, 0, "+proj=longlat +ellps=intl +datum=nzgd49 +no_defs");
     add_srs_wkt (p, 0,
@@ -63253,7 +63253,7 @@ initialize_epsg_16 (struct epsg_defs **first, struct epsg_defs **last)
     add_srs_wkt (p, 4,
 		 "328,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4");
     add_srs_wkt (p, 5, "326\"]]");
-#if OMIT_EPSG == 0		/* resuming conditional EPSG initialization */
+#ifndef OMIT_EPSG		/* resuming conditional EPSG initialization */
 
     p = add_epsg_def (first, last, 4600, "epsg", 4600, "Anguilla 1957");
     add_proj4text (p, 0, "+proj=longlat +ellps=clrk80 +no_defs");
@@ -64438,7 +64438,7 @@ static void
 initialize_epsg_17 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 4689, "epsg", 4689, "IGN63 Hiva Oa");
     add_proj4text (p, 0, "+proj=longlat +ellps=intl +no_defs");
@@ -66850,7 +66850,7 @@ static void
 initialize_epsg_18 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 20031, "epsg", 20031,
 		      "Pulkovo 1995 / Gauss-Kruger zone 31");
@@ -70676,7 +70676,7 @@ static void
 initialize_epsg_19 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 21896, "epsg", 21896,
 		      "Bogota 1975 / Colombia West zone");
@@ -74492,7 +74492,7 @@ static void
 initialize_epsg_20 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 24345, "epsg", 24345,
 		      "Kalianpur 1975 / UTM zone 45N");
@@ -78515,7 +78515,7 @@ static void
 initialize_epsg_21 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 26759, "epsg", 26759,
 		      "NAD27 / Florida West");
@@ -82799,7 +82799,7 @@ static void
 initialize_epsg_22 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 26938, "epsg", 26938,
 		      "NAD83 / Alaska zone 8");
@@ -87066,7 +87066,7 @@ static void
 initialize_epsg_23 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 28191, "epsg", 28191,
 		      "Palestine 1923 / Palestine Grid");
@@ -90946,7 +90946,7 @@ static void
 initialize_epsg_24 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 30161, "epsg", 30161,
 		      "Tokyo / Japan Plane Rectangular CS I");
@@ -94946,7 +94946,7 @@ static void
 initialize_epsg_25 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 32001, "epsg", 32001,
 		      "NAD27 / Montana North");
@@ -99263,7 +99263,7 @@ static void
 initialize_epsg_26 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 32165, "epsg", 32165,
 		      "NAD83 / BLM 15N (ftUS)");
@@ -102747,7 +102747,7 @@ static void
 initialize_epsg_27 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     struct epsg_defs *p;
     p = add_epsg_def (first, last, 32346, "epsg", 32346,
 		      "WGS 72 / UTM zone 46S");
@@ -106569,7 +106569,7 @@ initialize_epsg_28 (struct epsg_defs **first, struct epsg_defs **last)
 {
 /* initializing the EPSG defs list */
     struct epsg_defs *p;
-#if OMIT_EPSG == 0		/* full EPSG initialization enabled */
+#ifndef OMIT_EPSG		/* full EPSG initialization enabled */
     p = add_epsg_def (first, last, 32554, "epsg", 32554,
 		      "WGS 72BE / UTM zone 54S");
     add_proj4text (p, 0,
@@ -110389,9 +110389,9 @@ initialize_epsg_29 (struct epsg_defs **first, struct epsg_defs **last)
     add_srs_wkt (p, 10,
 		 "northing\",10000000],AUTHORITY[\"EPSG\",\"32766\"],AXIS[");
     add_srs_wkt (p, 11, "\"Easting\",EAST],AXIS[\"Northing\",NORTH]]");
-#if OMIT_EPSG == 0		/* resuming conditional EPSG initialization */
+#ifndef OMIT_EPSG		/* resuming conditional EPSG initialization */
 
-    p = add_epsg_def (first, last, 40000, "gfoss.it", 40000,
+    p = add_epsg_def (first, last, 40000, "gfoss.it", 1,
 		      "Italy mainland zone 1 GB Roma40");
     add_proj4text (p, 0,
 		   "+proj=tmerc+lat_0=0 +lon_0=9  +k=0.9996 +x_0=1500000 +y_");
@@ -110399,7 +110399,7 @@ initialize_epsg_29 (struct epsg_defs **first, struct epsg_defs **last)
 		   "0=0 +ellps=intl +units=m +towgs84=-104.1,-49.1,-9.9,0.97");
     add_proj4text (p, 2, "1,-2.917,0.714,-11.68 +no_defs");
     add_srs_wkt (p, 0, "");
-    p = add_epsg_def (first, last, 40001, "gfoss.it", 40001,
+    p = add_epsg_def (first, last, 40001, "gfoss.it", 2,
 		      "Italy mainland zone 2 GB Roma40");
     add_proj4text (p, 0,
 		   "+proj=tmerc +lat_0=0 +lon_0=15 +k=0.9996 +x_0=2520000 +y");
@@ -110407,7 +110407,7 @@ initialize_epsg_29 (struct epsg_defs **first, struct epsg_defs **last)
 		   "_0=0 +ellps=intl +units=m +towgs84=-104.1,-49.1,-9.9,0.9");
     add_proj4text (p, 2, "71,-2.917,0.714,-11.68 +no_defs");
     add_srs_wkt (p, 0, "");
-    p = add_epsg_def (first, last, 40002, "gfoss.it", 40002,
+    p = add_epsg_def (first, last, 40002, "gfoss.it", 3,
 		      "Italy Sardinia GB Roma40");
     add_proj4text (p, 0,
 		   "+proj=tmerc +lat_0=0 +lon_0=9  +k=0.9996 +x_0=1500000 +y");
@@ -110415,7 +110415,7 @@ initialize_epsg_29 (struct epsg_defs **first, struct epsg_defs **last)
 		   "_0=0 +ellps=intl +units=m +towgs84=-168.6,-34.0,38.6,-0.");
     add_proj4text (p, 2, "374,-0.679,-1.379,-9.48 +no_defs");
     add_srs_wkt (p, 0, "");
-    p = add_epsg_def (first, last, 40003, "gfoss.it", 40003,
+    p = add_epsg_def (first, last, 40003, "gfoss.it", 4,
 		      "Italy Sicily GB Roma40");
     add_proj4text (p, 0,
 		   "+proj=tmerc +lat_0=0 +lon_0=9  +k=0.9996 +x_0=1500000 +y");
