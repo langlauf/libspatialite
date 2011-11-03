@@ -110617,7 +110617,6 @@ check_spatial_ref_sys (sqlite3 * handle)
     int rs_srid = 0;
     int auth_name = 0;
     int auth_srid = 0;
-    int srtext = 0;
     int ref_sys_name = 0;
     int proj4text = 0;
     int srs_wkt = 0;
@@ -110644,8 +110643,6 @@ check_spatial_ref_sys (sqlite3 * handle)
 		    auth_name = 1;
 		if (strcasecmp (name, "auth_srid") == 0)
 		    auth_srid = 1;
-		if (strcasecmp (name, "srtext") == 0)
-		    srtext = 1;
 		if (strcasecmp (name, "ref_sys_name") == 0)
 		    ref_sys_name = 1;
 		if (strcasecmp (name, "proj4text") == 0)
@@ -110726,7 +110723,7 @@ spatial_ref_sys_init (sqlite3 * handle, int verbose)
       {
 	  if (verbose)
 	      fprintf (stderr,
-		       "OK: the SPATIAL_REF_SYS table was succesfully populated\n");
+		       "OK: the SPATIAL_REF_SYS table was successfully populated\n");
 	  return 1;
       }
     return 0;
