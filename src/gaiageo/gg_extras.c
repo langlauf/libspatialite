@@ -43,6 +43,8 @@ the terms of any one of the MPL, the GPL or the LGPL.
  
 */
 
+#include "config.h"
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -50,22 +52,10 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 #include <math.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 #include <spatialite/gaiageo.h>
-
-#if defined(_WIN32) && !defined(__MINGW32__)
-static double 
-rint(double x)
-{
-     return floor(x + 0.5);
-}
-#endif
 
 static void
 auxGridSnapPoint (int dimension_model, gaiaPointPtr pt, gaiaGeomCollPtr result,
@@ -724,7 +714,7 @@ gaiaSnapToGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
     return result;
 }
 
-#ifdef GEOS_ADVANCED		/* GEOS advanced features */
+#ifndef OMIT_GEOS		/* including GEOS */
 
 static void
 get_grid_bbox (gaiaGeomCollPtr geom, double *min_x, double *min_y,

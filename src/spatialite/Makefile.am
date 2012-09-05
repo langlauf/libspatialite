@@ -1,5 +1,5 @@
 
-INCLUDES = @CFLAGS@ @GEOS_CFLAGS@
+INCLUDES = @CFLAGS@
 INCLUDES += -I$(top_srcdir)/src/headers
 
 noinst_LTLIBRARIES = libsplite.la

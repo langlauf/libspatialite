@@ -49,11 +49,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 #include <string.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 
@@ -4225,10 +4221,9 @@ gaiaToWkb (gaiaGeomCollPtr geom, unsigned char **result, int *size)
       }
 }
 
-GAIAGEO_DECLARE int
-gaiaEwkbGetPoint (gaiaGeomCollPtr geom, unsigned char *blob,
-		  int offset, int blob_size, int endian, int endian_arch,
-		  int dims)
+static int
+ewkbGetPoint (gaiaGeomCollPtr geom, unsigned char *blob,
+	      int offset, int blob_size, int endian, int endian_arch, int dims)
 {
 /* decodes a POINT from PostGIS EWKB binary GEOMETRY */
     double x;
@@ -4280,10 +4275,10 @@ gaiaEwkbGetPoint (gaiaGeomCollPtr geom, unsigned char *blob,
     return offset;
 }
 
-GAIAGEO_DECLARE int
-gaiaEwkbGetLinestring (gaiaGeomCollPtr geom, unsigned char *blob,
-		       int offset, int blob_size, int endian,
-		       int endian_arch, int dims)
+static int
+ewkbGetLinestring (gaiaGeomCollPtr geom, unsigned char *blob,
+		   int offset, int blob_size, int endian,
+		   int endian_arch, int dims)
 {
 /* decodes a LINESTRING from PostGIS binary GEOMETRY */
     int npoints;
@@ -4346,10 +4341,10 @@ gaiaEwkbGetLinestring (gaiaGeomCollPtr geom, unsigned char *blob,
     return offset;
 }
 
-GAIAGEO_DECLARE int
-gaiaEwkbGetPolygon (gaiaGeomCollPtr geom, unsigned char *blob,
-		    int offset, int blob_size, int endian,
-		    int endian_arch, int dims)
+static int
+ewkbGetPolygon (gaiaGeomCollPtr geom, unsigned char *blob,
+		int offset, int blob_size, int endian,
+		int endian_arch, int dims)
 {
 /* decodes a POLYGON from PostGIS binary GEOMETRY */
     int rings;
@@ -4428,10 +4423,10 @@ gaiaEwkbGetPolygon (gaiaGeomCollPtr geom, unsigned char *blob,
     return offset;
 }
 
-GAIAGEO_DECLARE int
-gaiaEwkbGetMultiGeometry (gaiaGeomCollPtr geom, unsigned char *blob,
-			  int offset, int blob_size, int endian,
-			  int endian_arch, int dims)
+static int
+ewkbGetMultiGeometry (gaiaGeomCollPtr geom, unsigned char *blob,
+		      int offset, int blob_size, int endian,
+		      int endian_arch, int dims)
 {
 /* decodes a MultiGeometry from PostGIS EWKB binary GEOMETRY */
     int entities;
@@ -4458,24 +4453,24 @@ gaiaEwkbGetMultiGeometry (gaiaGeomCollPtr geom, unsigned char *blob,
 	    {
 	    case GAIA_POINT:
 		off =
-		    gaiaEwkbGetPoint (geom, blob, offset, blob_size, endian,
-				      endian_arch, dims);
+		    ewkbGetPoint (geom, blob, offset, blob_size, endian,
+				  endian_arch, dims);
 		if (off < 0)
 		    return -1;
 		offset = off;
 		break;
 	    case GAIA_LINESTRING:
 		off =
-		    gaiaEwkbGetLinestring (geom, blob, offset, blob_size,
-					   endian, endian_arch, dims);
+		    ewkbGetLinestring (geom, blob, offset, blob_size, endian,
+				       endian_arch, dims);
 		if (off < 0)
 		    return -1;
 		offset = off;
 		break;
 	    case GAIA_POLYGON:
 		off =
-		    gaiaEwkbGetPolygon (geom, blob, offset, blob_size, endian,
-					endian_arch, dims);
+		    ewkbGetPolygon (geom, blob, offset, blob_size, endian,
+				    endian_arch, dims);
 		if (off < 0)
 		    return -1;
 		offset = off;
@@ -4615,8 +4610,8 @@ parseHexEwkbByte (const unsigned char high, const unsigned char low,
     return 1;
 }
 
-GAIAGEO_DECLARE unsigned char *
-gaiaParseHexEWKB (const unsigned char *blob_hex, int *blob_size)
+static unsigned char *
+parseHexEWKB (const unsigned char *blob_hex, int *blob_size)
 {
 /* parsing an Hexadecimal EWKB Geometry */
     unsigned char *blob;
@@ -4668,7 +4663,7 @@ gaiaFromEWKB (const unsigned char *in_buffer)
     int endian;
     int endian_arch = gaiaEndianArch ();
     gaiaGeomCollPtr geom = NULL;
-    blob = gaiaParseHexEWKB (in_buffer, &blob_size);
+    blob = parseHexEWKB (in_buffer, &blob_size);
     if (!blob)
 	return NULL;
     if (blob_size < 9)
@@ -4724,23 +4719,23 @@ gaiaFromEWKB (const unsigned char *in_buffer)
       {
       case GAIA_POINT:
 	  ret =
-	      gaiaEwkbGetPoint (geom, blob, 9, blob_size, endian, endian_arch,
-				dims);
+	      ewkbGetPoint (geom, blob, 9, blob_size, endian, endian_arch,
+			    dims);
 	  break;
       case GAIA_LINESTRING:
 	  ret =
-	      gaiaEwkbGetLinestring (geom, blob, 9, blob_size, endian,
-				     endian_arch, dims);
+	      ewkbGetLinestring (geom, blob, 9, blob_size, endian, endian_arch,
+				 dims);
 	  break;
       case GAIA_POLYGON:
 	  ret =
-	      gaiaEwkbGetPolygon (geom, blob, 9, blob_size, endian, endian_arch,
-				  dims);
+	      ewkbGetPolygon (geom, blob, 9, blob_size, endian, endian_arch,
+			      dims);
 	  break;
       default:
 	  ret =
-	      gaiaEwkbGetMultiGeometry (geom, blob, 9, blob_size, endian,
-					endian_arch, dims);
+	      ewkbGetMultiGeometry (geom, blob, 9, blob_size, endian,
+				    endian_arch, dims);
 	  break;
       };
     free (blob);

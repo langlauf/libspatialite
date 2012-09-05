@@ -48,11 +48,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 #include <spatialite/debug.h>
@@ -105,12 +101,32 @@ typedef struct VirtualDbfCursorStruct
 
 typedef VirtualDbfCursor *VirtualDbfCursorPtr;
 
+static void
+vdbf_double_quoted_sql (char *buf)
+{
+/* well-formatting a string to be used as an SQL name */
+    char tmp[1024];
+    char *in = tmp;
+    char *out = buf;
+    strcpy (tmp, buf);
+    *out++ = '"';
+    while (*in != '\0')
+      {
+	  if (*in == '"')
+	      *out++ = '"';
+	  *out++ = *in++;
+      }
+    *out++ = '"';
+    *out = '\0';
+}
+
 static int
 vdbf_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	     sqlite3_vtab ** ppVTab, char **pzErr)
 {
 /* creates the virtual table connected to some DBF */
-    char *sql;
+    char buf[4096];
+    char field[128];
     VirtualDbfPtr p_vt;
     char path[2048];
     char encoding[128];
@@ -123,9 +139,8 @@ vdbf_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     int seed;
     int dup;
     int idup;
-    char *xname;
+    char dummyName[4096];
     char **col_name = NULL;
-    gaiaOutBuffer sql_statement;
     if (pAux)
 	pAux = pAux;		/* unused arg warning suppression */
 /* checking for DBF PATH */
@@ -177,28 +192,25 @@ vdbf_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     if (!(p_vt->dbf->Valid))
       {
 	  /* something is going the wrong way; creating a stupid default table */
-	  xname = gaiaDoubleQuotedSql ((const char *) argv[2]);
-	  sql = sqlite3_mprintf ("CREATE TABLE \"%s\" (PKUID INTEGER)", xname);
-	  free (xname);
-	  if (sqlite3_declare_vtab (db, sql) != SQLITE_OK)
+	  strcpy (dummyName, argv[2]);
+	  vdbf_double_quoted_sql (dummyName);
+	  sprintf (buf, "CREATE TABLE %s (PKUID INTEGER)", dummyName);
+	  if (sqlite3_declare_vtab (db, buf) != SQLITE_OK)
 	    {
-		sqlite3_free (sql);
 		*pzErr =
 		    sqlite3_mprintf
 		    ("[VirtualDbf module] cannot build a table from DBF\n");
 		return SQLITE_ERROR;
 	    }
-	  sqlite3_free (sql);
 	  *ppVTab = (sqlite3_vtab *) p_vt;
 	  return SQLITE_OK;
       }
 /* preparing the COLUMNs for this VIRTUAL TABLE */
-    gaiaOutBufferInitialize (&sql_statement);
-    xname = gaiaDoubleQuotedSql (argv[2]);
-    sql = sqlite3_mprintf ("CREATE TABLE \"%s\" (PKUID INTEGER", xname);
-    free (xname);
-    gaiaAppendToOutBuffer (&sql_statement, sql);
-    sqlite3_free (sql);
+    strcpy (buf, "CREATE TABLE ");
+    strcpy (dummyName, argv[2]);
+    vdbf_double_quoted_sql (dummyName);
+    strcat (buf, dummyName);
+    strcat (buf, " (PKUID INTEGER");
 /* checking for duplicate / illegal column names and antialising them */
     col_cnt = 0;
     pFld = p_vt->dbf->Dbf->First;
@@ -214,41 +226,41 @@ vdbf_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     pFld = p_vt->dbf->Dbf->First;
     while (pFld)
       {
-	  xname = gaiaDoubleQuotedSql (pFld->Name);
+	  sprintf (dummyName, "%s", pFld->Name);
+	  vdbf_double_quoted_sql (dummyName);
 	  dup = 0;
 	  for (idup = 0; idup < cnt; idup++)
 	    {
-		if (strcasecmp (xname, *(col_name + idup)) == 0)
+		if (strcasecmp (dummyName, *(col_name + idup)) == 0)
 		    dup = 1;
 	    }
-	  if (strcasecmp (xname, "\"PKUID\"") == 0)
+	  if (strcasecmp (dummyName, "PKUID") == 0)
 	      dup = 1;
 	  if (dup)
 	    {
-		free (xname);
-		sql = sqlite3_mprintf ("COL_%d", seed++);
-		xname = gaiaDoubleQuotedSql (sql);
-		sqlite3_free (sql);
+		sprintf (dummyName, "COL_%d", seed++);
+		vdbf_double_quoted_sql (dummyName);
 	    }
 	  if (pFld->Type == 'N')
 	    {
 		if (pFld->Decimals > 0 || pFld->Length > 18)
-		    sql = sqlite3_mprintf (", \"%s\" DOUBLE", xname);
+		    sprintf (field, "%s DOUBLE", dummyName);
 		else
-		    sql = sqlite3_mprintf (", \"%s\" INTEGER", xname);
+		    sprintf (field, "%s INTEGER", dummyName);
 	    }
 	  else if (pFld->Type == 'F')
-	      sql = sqlite3_mprintf (", \"%s\" DOUBLE", xname);
+	      sprintf (field, "%s DOUBLE", dummyName);
 	  else
-	      sql =
-		  sqlite3_mprintf (", \"%s\" VARCHAR(%d)", xname, pFld->Length);
-	  gaiaAppendToOutBuffer (&sql_statement, sql);
-	  sqlite3_free (sql);
-	  *(col_name + cnt) = xname;
+	      sprintf (field, "%s VARCHAR(%d)", dummyName, pFld->Length);
+	  strcat (buf, ", ");
+	  strcat (buf, field);
+	  len = strlen (dummyName);
+	  *(col_name + cnt) = malloc (len + 1);
+	  strcpy (*(col_name + cnt), dummyName);
 	  cnt++;
 	  pFld = pFld->Next;
       }
-    gaiaAppendToOutBuffer (&sql_statement, ")");
+    strcat (buf, ")");
     if (col_name)
       {
 	  /* releasing memory allocation for column names */
@@ -256,19 +268,14 @@ vdbf_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	      free (*(col_name + cnt));
 	  free (col_name);
       }
-    if (sql_statement.Error == 0 && sql_statement.Buffer != NULL)
+    if (sqlite3_declare_vtab (db, buf) != SQLITE_OK)
       {
-	  if (sqlite3_declare_vtab (db, sql_statement.Buffer) != SQLITE_OK)
-	    {
-		*pzErr =
-		    sqlite3_mprintf
-		    ("[VirtualDbf module] CREATE VIRTUAL: invalid SQL statement \"%s\"",
-		     sql_statement.Buffer);
-		gaiaOutBufferReset (&sql_statement);
-		return SQLITE_ERROR;
-	    }
+	  *pzErr =
+	      sqlite3_mprintf
+	      ("[VirtualDbf module] CREATE VIRTUAL: invalid SQL statement \"%s\"",
+	       buf);
+	  return SQLITE_ERROR;
       }
-    gaiaOutBufferReset (&sql_statement);
     *ppVTab = (sqlite3_vtab *) p_vt;
     return SQLITE_OK;
 }

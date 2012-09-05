@@ -1,4 +1,4 @@
-great circle length - text
+great circle distance - text
 :memory:
 SELECT GreatCircleLength("Hello");
 1 # rows

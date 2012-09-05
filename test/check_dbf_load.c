@@ -80,16 +80,11 @@ int main (int argc, char *argv[])
 	sqlite3_close(handle);
 	return -3;
     }
-    if (row_count != 2) {
-	fprintf (stderr, "unexpected row count for load_dbf: %i\n", row_count);
-	sqlite3_close(handle);
-	return -4;
-    }
     
     ret = sqlite3_close (handle);
     if (ret != SQLITE_OK) {
         fprintf (stderr, "sqlite3_close() error: %s\n", sqlite3_errmsg (handle));
-	return -5;
+	return -4;
     }
     
     spatialite_cleanup();

@@ -49,11 +49,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <string.h>
 #include <math.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 
@@ -63,7 +59,6 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #ifdef _WIN32
 #define strcasecmp	_stricmp
-#define strncasecmp	_strnicmp
 #endif /* not WIN32 */
 
 static struct sqlite3_module my_spidx_module;
@@ -95,377 +90,293 @@ typedef struct VirtualSpatialIndexCursorStruct
 } VirtualSpatialIndexCursor;
 typedef VirtualSpatialIndexCursor *VirtualSpatialIndexCursorPtr;
 
-static int
-vspidx_check_view_rtree (sqlite3 * sqlite, const char *table_name,
-			 const char *geom_column, char **real_table,
-			 char **real_geom)
+static void
+vspidx_double_quoted_sql (char *buf)
 {
-/* checks if the required RTree is actually defined - SpatialView */
-    sqlite3_stmt *stmt;
-    char *sql_statement;
-    int ret;
-    int count = 0;
-    char *rt = NULL;
-    char *rg = NULL;
-
-/* testing if views_geometry_columns exists */
-    sql_statement = sqlite3_mprintf ("SELECT tbl_name FROM sqlite_master "
-				     "WHERE type = 'table' AND tbl_name = 'views_geometry_columns'");
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
+/* well-formatting a string to be used as an SQL name */
+    char tmp[1024];
+    char *in = tmp;
+    char *out = buf;
+    strcpy (tmp, buf);
+    *out++ = '"';
+    while (*in != '\0')
       {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	      count++;
+	  if (*in == '"')
+	      *out++ = '"';
+	  *out++ = *in++;
       }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return 0;
-    count = 0;
-
-/* attempting to find the RTree Geometry Column */
-    sql_statement =
-	sqlite3_mprintf ("SELECT a.f_table_name, a.f_geometry_column "
-			 "FROM views_geometry_columns AS a "
-			 "JOIN geometry_columns AS b ON ("
-			 "Upper(a.f_table_name) = Upper(b.f_table_name) AND "
-			 "Upper(a.f_geometry_column) = Upper(b.f_geometry_column)) "
-			 "WHERE Upper(a.view_name) = Upper(%Q) "
-			 "AND Upper(a.view_geometry) = Upper(%Q) AND b.spatial_index_enabled = 1",
-			 table_name, geom_column);
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
-      {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	    {
-		const char *v = (const char *) sqlite3_column_text (stmt, 0);
-		int len = sqlite3_column_bytes (stmt, 0);
-		if (rt)
-		    free (rt);
-		rt = malloc (len + 1);
-		strcpy (rt, v);
-		v = (const char *) sqlite3_column_text (stmt, 1);
-		len = sqlite3_column_bytes (stmt, 1);
-		if (rg)
-		    free (rg);
-		rg = malloc (len + 1);
-		strcpy (rg, v);
-		count++;
-	    }
-      }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return 0;
-    *real_table = rt;
-    *real_geom = rg;
-    return 1;
-}
-
-static int
-vspidx_check_rtree (sqlite3 * sqlite, const char *db_prefix,
-		    const char *table_name, const char *geom_column,
-		    char **real_table, char **real_geom)
-{
-/* checks if the required RTree is actually defined */
-    sqlite3_stmt *stmt;
-    char *sql_statement;
-    int ret;
-    int count = 0;
-    char *rt = NULL;
-    char *rg = NULL;
-
-    if (db_prefix == NULL)
-      {
-	  sql_statement =
-	      sqlite3_mprintf
-	      ("SELECT f_table_name, f_geometry_column FROM geometry_columns "
-	       "WHERE Upper(f_table_name) = Upper(%Q) AND "
-	       "Upper(f_geometry_column) = Upper(%Q) AND spatial_index_enabled = 1",
-	       table_name, geom_column);
-      }
-    else
-      {
-	  char *quoted_db = gaiaDoubleQuotedSql (db_prefix);
-	  sql_statement =
-	      sqlite3_mprintf
-	      ("SELECT f_table_name, f_geometry_column FROM \"%s\".geometry_columns "
-	       "WHERE Upper(f_table_name) = Upper(%Q) AND "
-	       "Upper(f_geometry_column) = Upper(%Q) AND spatial_index_enabled = 1",
-	       quoted_db, table_name, geom_column);
-	  free (quoted_db);
-      }
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
-      {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	    {
-		const char *v = (const char *) sqlite3_column_text (stmt, 0);
-		int len = sqlite3_column_bytes (stmt, 0);
-		if (rt)
-		    free (rt);
-		rt = malloc (len + 1);
-		strcpy (rt, v);
-		v = (const char *) sqlite3_column_text (stmt, 1);
-		len = sqlite3_column_bytes (stmt, 1);
-		if (rg)
-		    free (rg);
-		rg = malloc (len + 1);
-		strcpy (rg, v);
-		count++;
-	    }
-      }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return vspidx_check_view_rtree (sqlite, table_name, geom_column,
-					real_table, real_geom);
-    else
-      {
-	  *real_table = rt;
-	  *real_geom = rg;
-      }
-    return 1;
-}
-
-static int
-vspidx_find_view_rtree (sqlite3 * sqlite, const char *db_prefix,
-			const char *table_name, char **real_table,
-			char **real_geom)
-{
-/* attempts to find the corresponding RTree Geometry Column - SpatialView */
-    sqlite3_stmt *stmt;
-    char *sql_statement;
-    int ret;
-    int count = 0;
-    char *rt = NULL;
-    char *rg = NULL;
-
-/* testing if views_geometry_columns exists */
-    if (db_prefix == NULL)
-      {
-	  sql_statement = sqlite3_mprintf ("SELECT tbl_name FROM sqlite_master "
-					   "WHERE type = 'table' AND tbl_name = 'views_geometry_columns'");
-      }
-    else
-      {
-	  char *quoted_db = gaiaDoubleQuotedSql (db_prefix);
-	  sql_statement =
-	      sqlite3_mprintf ("SELECT tbl_name FROM \"%s\".sqlite_master "
-			       "WHERE type = 'table' AND tbl_name = 'views_geometry_columns'",
-			       quoted_db);
-	  free (quoted_db);
-      }
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
-      {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	      count++;
-      }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return 0;
-    count = 0;
-
-/* attempting to find the RTree Geometry Column */
-    if (db_prefix == NULL)
-      {
-	  sql_statement =
-	      sqlite3_mprintf ("SELECT a.f_table_name, a.f_geometry_column "
-			       "FROM views_geometry_columns AS a "
-			       "JOIN geometry_columns AS b ON ("
-			       "Upper(a.f_table_name) = Upper(b.f_table_name) AND "
-			       "Upper(a.f_geometry_column) = Upper(b.f_geometry_column)) "
-			       "WHERE Upper(a.view_name) = Upper(%Q) AND b.spatial_index_enabled = 1",
-			       table_name);
-      }
-    else
-      {
-	  char *quoted_db = gaiaDoubleQuotedSql (db_prefix);
-	  sql_statement =
-	      sqlite3_mprintf ("SELECT a.f_table_name, a.f_geometry_column "
-			       "FROM \"%s\".views_geometry_columns AS a "
-			       "JOIN \"%s\".geometry_columns AS b ON ("
-			       "Upper(a.f_table_name) = Upper(b.f_table_name) AND "
-			       "Upper(a.f_geometry_column) = Upper(b.f_geometry_column)) "
-			       "WHERE Upper(a.view_name) = Upper(%Q) AND b.spatial_index_enabled = 1",
-			       quoted_db, quoted_db, table_name);
-	  free (quoted_db);
-      }
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
-      {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	    {
-		const char *v = (const char *) sqlite3_column_text (stmt, 0);
-		int len = sqlite3_column_bytes (stmt, 0);
-		if (rt)
-		    free (rt);
-		rt = malloc (len + 1);
-		strcpy (rt, v);
-		v = (const char *) sqlite3_column_text (stmt, 1);
-		len = sqlite3_column_bytes (stmt, 1);
-		if (rg)
-		    free (rg);
-		rg = malloc (len + 1);
-		strcpy (rg, v);
-		count++;
-	    }
-      }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return 0;
-    *real_table = rt;
-    *real_geom = rg;
-    return 1;
-}
-
-static int
-vspidx_find_rtree (sqlite3 * sqlite, const char *db_prefix,
-		   const char *table_name, char **real_table, char **real_geom)
-{
-/* attempts to find the corresponding RTree Geometry Column */
-    sqlite3_stmt *stmt;
-    char *sql_statement;
-    int ret;
-    int count = 0;
-    char *rt = NULL;
-    char *rg = NULL;
-
-    if (db_prefix == NULL)
-      {
-	  sql_statement =
-	      sqlite3_mprintf
-	      ("SELECT f_table_name, f_geometry_column FROM geometry_columns "
-	       "WHERE Upper(f_table_name) = Upper(%Q) AND spatial_index_enabled = 1",
-	       table_name);
-      }
-    else
-      {
-	  char *quoted_db = gaiaDoubleQuotedSql (db_prefix);
-	  sql_statement =
-	      sqlite3_mprintf
-	      ("SELECT f_table_name, f_geometry_column FROM \"%s\".geometry_columns "
-	       "WHERE Upper(f_table_name) = Upper(%Q) AND spatial_index_enabled = 1",
-	       quoted_db, table_name);
-	  free (quoted_db);
-      }
-    ret =
-	sqlite3_prepare_v2 (sqlite, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
-    if (ret != SQLITE_OK)
-	return 0;
-    while (1)
-      {
-	  /* scrolling the result set rows */
-	  ret = sqlite3_step (stmt);
-	  if (ret == SQLITE_DONE)
-	      break;		/* end of result set */
-	  if (ret == SQLITE_ROW)
-	    {
-		const char *v = (const char *) sqlite3_column_text (stmt, 0);
-		int len = sqlite3_column_bytes (stmt, 0);
-		if (rt)
-		    free (rt);
-		rt = malloc (len + 1);
-		strcpy (rt, v);
-		v = (const char *) sqlite3_column_text (stmt, 1);
-		len = sqlite3_column_bytes (stmt, 1);
-		if (rg)
-		    free (rg);
-		rg = malloc (len + 1);
-		strcpy (rg, v);
-		count++;
-	    }
-      }
-    sqlite3_finalize (stmt);
-    if (count != 1)
-	return vspidx_find_view_rtree (sqlite, db_prefix, table_name,
-				       real_table, real_geom);
-    else
-      {
-	  *real_table = rt;
-	  *real_geom = rg;
-      }
-    return 1;
+    *out++ = '"';
+    *out = '\0';
 }
 
 static void
-vspidx_parse_table_name (const char *tn, char **db_prefix, char **table_name)
+vspidx_clean_sql_string (char *buf)
 {
-/* attempting to extract an eventual DB prefix */
-    int i;
-    int len = strlen (tn);
-    int i_dot = -1;
-    if (strncasecmp (tn, "DB=", 3) == 0)
+/* returns a well formatted TEXT value for SQL */
+    char tmp[1024];
+    char *in = tmp;
+    char *out = buf;
+    strcpy (tmp, buf);
+    while (*in != '\0')
       {
-	  int l_db;
-	  int l_tbl;
-	  for (i = 3; i < len; i++)
+	  if (*in == '\'')
+	      *out++ = '\'';
+	  *out++ = *in++;
+      }
+    *out = '\0';
+}
+
+static void
+vspidx_dequote (char *buf)
+{
+/* dequoting an SQL string */
+    char tmp[1024];
+    char *in = tmp;
+    char *out = buf;
+    char strip = '\0';
+    int first = 0;
+    int len = strlen (buf);
+    if (buf[0] == '\'' && buf[len - 1] == '\'')
+	strip = '\'';
+    if (buf[0] == '"' && buf[len - 1] == '"')
+	strip = '"';
+    if (strip == '\0')
+	return;
+    strcpy (tmp, buf + 1);
+    len = strlen (tmp);
+    tmp[len - 1] = '\0';
+    while (*in != '\0')
+      {
+	  if (*in == strip)
 	    {
-		if (tn[i] == '.')
+		if (first)
 		  {
-		      i_dot = i;
-		      break;
+		      first = 0;
+		      in++;
+		      continue;
+		  }
+		else
+		  {
+		      first = 1;
+		      *out++ = *in++;
+		      continue;
 		  }
 	    }
-	  if (i_dot > 1)
+	  first = 0;
+	  *out++ = *in++;
+      }
+    *out = '\0';
+}
+
+static int
+vspidx_check_view_rtree (sqlite3 * sqlite, const char *table_name,
+			 const char *geom_column, char *real_table,
+			 char *real_geom)
+{
+/* checks if the required RTree is actually defined - SpatialView */
+    char sql[4096];
+    char xtable[1024];
+    char xcolumn[1024];
+    int ret;
+    int i;
+    int n_rows;
+    int n_columns;
+    char **results;
+    int count = 0;
+
+/* testing if views_geometry_columns exists */
+    strcpy (sql, "SELECT tbl_name FROM sqlite_master ");
+    strcat (sql,
+	    "WHERE type = 'table' AND tbl_name = 'views_geometry_columns'");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
+	      count++;
+      }
+    sqlite3_free_table (results);
+    if (count != 1)
+	return 0;
+    count = 0;
+
+/* attempting to find the RTree Geometry Column */
+    strcpy (xtable, table_name);
+    strcpy (xcolumn, geom_column);
+    strcpy (sql, "SELECT a.f_table_name, a.f_geometry_column ");
+    strcat (sql, "FROM views_geometry_columns AS a ");
+    strcat (sql, "JOIN geometry_columns AS b ON (");
+    strcat (sql, "Upper(a.f_table_name) = Upper(b.f_table_name) AND ");
+    strcat (sql, "Upper(a.f_geometry_column) = Upper(b.f_geometry_column)) ");
+    strcat (sql, "WHERE Upper(a.view_name) = Upper('");
+    vspidx_clean_sql_string (xtable);
+    strcat (sql, xtable);
+    strcat (sql, "') AND Upper(a.view_geometry) = Upper('");
+    vspidx_clean_sql_string (xcolumn);
+    strcat (sql, xcolumn);
+    strcat (sql, "') AND b.spatial_index_enabled = 1");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
 	    {
-		l_db = i_dot - 3;
-		l_tbl = len - (i_dot + 1);
-		*db_prefix = malloc (l_db + 1);
-		memset (*db_prefix, '\0', l_db + 1);
-		memcpy (*db_prefix, tn + 3, l_db);
-		*table_name = malloc (l_tbl + 1);
-		strcpy (*table_name, tn + i_dot + 1);
-		return;
+		count++;
+		strcpy (real_table, results[(i * n_columns) + 0]);
+		strcpy (real_geom, results[(i * n_columns) + 1]);
 	    }
       }
-    *table_name = malloc (len + 1);
-    strcpy (*table_name, tn);
+    sqlite3_free_table (results);
+    if (count != 1)
+	return 0;
+    return 1;
+}
+
+static int
+vspidx_check_rtree (sqlite3 * sqlite, const char *table_name,
+		    const char *geom_column, char *real_table, char *real_geom)
+{
+/* checks if the required RTree is actually defined */
+    char sql[4096];
+    char xtable[1024];
+    char xcolumn[1024];
+    int ret;
+    int i;
+    int n_rows;
+    int n_columns;
+    char **results;
+    int count = 0;
+
+    strcpy (xtable, table_name);
+    strcpy (xcolumn, geom_column);
+    strcpy (sql,
+	    "SELECT f_table_name, f_geometry_column FROM geometry_columns ");
+    strcat (sql, "WHERE Upper(f_table_name) = Upper('");
+    vspidx_clean_sql_string (xtable);
+    strcat (sql, xtable);
+    strcat (sql, "') AND Upper(f_geometry_column) = Upper('");
+    vspidx_clean_sql_string (xcolumn);
+    strcat (sql, xcolumn);
+    strcat (sql, "') AND spatial_index_enabled = 1");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
+	    {
+		count++;
+		strcpy (real_table, results[(i * n_columns) + 0]);
+		strcpy (real_geom, results[(i * n_columns) + 1]);
+	    }
+      }
+    sqlite3_free_table (results);
+    if (count != 1)
+	return vspidx_check_view_rtree (sqlite, table_name, geom_column,
+					real_table, real_geom);
+    return 1;
+}
+
+static int
+vspidx_find_view_rtree (sqlite3 * sqlite, const char *table_name,
+			char *real_table, char *real_geom)
+{
+/* attempts to find the corresponding RTree Geometry Column - SpatialView */
+    char sql[4096];
+    char xtable[1024];
+    int ret;
+    int i;
+    int n_rows;
+    int n_columns;
+    char **results;
+    int count = 0;
+
+/* testing if views_geometry_columns exists */
+    strcpy (sql, "SELECT tbl_name FROM sqlite_master ");
+    strcat (sql,
+	    "WHERE type = 'table' AND tbl_name = 'views_geometry_columns'");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
+	      count++;
+      }
+    sqlite3_free_table (results);
+    if (count != 1)
+	return 0;
+    count = 0;
+
+/* attempting to find the RTree Geometry Column */
+    strcpy (xtable, table_name);
+    strcpy (sql, "SELECT a.f_table_name, a.f_geometry_column ");
+    strcat (sql, "FROM views_geometry_columns AS a ");
+    strcat (sql, "JOIN geometry_columns AS b ON (");
+    strcat (sql, "Upper(a.f_table_name) = Upper(b.f_table_name) AND ");
+    strcat (sql, "Upper(a.f_geometry_column) = Upper(b.f_geometry_column)) ");
+    strcat (sql, "WHERE Upper(a.view_name) = Upper('");
+    vspidx_clean_sql_string (xtable);
+    strcat (sql, xtable);
+    strcat (sql, "') AND b.spatial_index_enabled = 1");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
+	    {
+		count++;
+		strcpy (real_table, results[(i * n_columns) + 0]);
+		strcpy (real_geom, results[(i * n_columns) + 1]);
+	    }
+      }
+    sqlite3_free_table (results);
+    if (count != 1)
+	return 0;
+    return 1;
+}
+
+static int
+vspidx_find_rtree (sqlite3 * sqlite, const char *table_name, char *real_table,
+		   char *real_geom)
+{
+/* attempts to find the corresponding RTree Geometry Column */
+    char sql[4096];
+    char xtable[1024];
+    int ret;
+    int i;
+    int n_rows;
+    int n_columns;
+    char **results;
+    int count = 0;
+
+    strcpy (xtable, table_name);
+    strcpy (sql,
+	    "SELECT f_table_name, f_geometry_column FROM geometry_columns ");
+    strcat (sql, "WHERE Upper(f_table_name) = Upper('");
+    vspidx_clean_sql_string (xtable);
+    strcat (sql, xtable);
+    strcat (sql, "') AND spatial_index_enabled = 1");
+    ret = sqlite3_get_table (sqlite, sql, &results, &n_rows, &n_columns, NULL);
+    if (ret != SQLITE_OK)
+	return 0;
+    if (n_rows >= 1)
+      {
+	  for (i = 1; i <= n_rows; i++)
+	    {
+		count++;
+		strcpy (real_table, results[(i * n_columns) + 0]);
+		strcpy (real_geom, results[(i * n_columns) + 1]);
+	    }
+      }
+    sqlite3_free_table (results);
+    if (count != 1)
+	return vspidx_find_view_rtree (sqlite, table_name, real_table,
+				       real_geom);
+    return 1;
 }
 
 static int
@@ -474,14 +385,15 @@ vspidx_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 {
 /* creates the virtual table for R*Tree SpatialIndex metahandling */
     VirtualSpatialIndexPtr p_vt;
-    char *buf;
-    char *vtable;
-    char *xname;
+    char buf[1024];
+    char vtable[1024];
+    char xname[1024];
     if (pAux)
 	pAux = pAux;		/* unused arg warning suppression */
     if (argc == 3)
       {
-	  vtable = gaiaDequotedSql ((char *) argv[2]);
+	  strcpy (vtable, argv[2]);
+	  vspidx_dequote (vtable);
       }
     else
       {
@@ -499,21 +411,20 @@ vspidx_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     p_vt->nRef = 0;
     p_vt->zErrMsg = NULL;
 /* preparing the COLUMNs for this VIRTUAL TABLE */
-    xname = gaiaDoubleQuotedSql (vtable);
-    buf = sqlite3_mprintf ("CREATE TABLE \"%s\" (f_table_name TEXT, "
-			   "f_geometry_column TEXT, search_frame BLOB)", xname);
-    free (xname);
-    free (vtable);
+    strcpy (buf, "CREATE TABLE ");
+    strcpy (xname, vtable);
+    vspidx_double_quoted_sql (xname);
+    strcat (buf, xname);
+    strcat (buf,
+	    " (f_table_name TEXT, f_geometry_column TEXT, search_frame BLOB)");
     if (sqlite3_declare_vtab (db, buf) != SQLITE_OK)
       {
-	  sqlite3_free (buf);
 	  *pzErr =
 	      sqlite3_mprintf
 	      ("[VirtualSpatialIndex module] CREATE VIRTUAL: invalid SQL statement \"%s\"",
 	       buf);
 	  return SQLITE_ERROR;
       }
-    sqlite3_free (buf);
     *ppVTab = (sqlite3_vtab *) p_vt;
     return SQLITE_OK;
 }
@@ -629,14 +540,12 @@ vspidx_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
 	       int argc, sqlite3_value ** argv)
 {
 /* setting up a cursor filter */
-    char *db_prefix = NULL;
-    char *table_name = NULL;
-    char *geom_column;
-    char *xtable = NULL;
-    char *xgeom = NULL;
-    char *idx_name;
-    char *idx_nameQ;
-    char *sql_statement;
+    char table_name[1024];
+    char geom_column[1024];
+    char xtable[1024];
+    char xgeom[1024];
+    char idx_name[1024];
+    char sql[4096];
     gaiaGeomCollPtr geom = NULL;
     int ok_table = 0;
     int ok_geom = 0;
@@ -662,13 +571,14 @@ vspidx_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
 	  /* retrieving the Table/Column/MBR params */
 	  if (sqlite3_value_type (argv[0]) == SQLITE_TEXT)
 	    {
-		char *tn = (char *) sqlite3_value_text (argv[0]);
-		vspidx_parse_table_name (tn, &db_prefix, &table_name);
+		strcpy (table_name,
+			(const char *) sqlite3_value_text (argv[0]));
 		ok_table = 1;
 	    }
 	  if (sqlite3_value_type (argv[1]) == SQLITE_TEXT)
 	    {
-		geom_column = (char *) sqlite3_value_text (argv[1]);
+		strcpy (geom_column,
+			(const char *) sqlite3_value_text (argv[1]));
 		ok_geom = 1;
 	    }
 	  if (sqlite3_value_type (argv[2]) == SQLITE_BLOB)
@@ -690,8 +600,8 @@ vspidx_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
 	  /* retrieving the Table/MBR params */
 	  if (sqlite3_value_type (argv[0]) == SQLITE_TEXT)
 	    {
-		char *tn = (char *) sqlite3_value_text (argv[0]);
-		vspidx_parse_table_name (tn, &db_prefix, &table_name);
+		strcpy (table_name,
+			(const char *) sqlite3_value_text (argv[0]));
 		ok_table = 1;
 	    }
 	  if (sqlite3_value_type (argv[1]) == SQLITE_BLOB)
@@ -712,39 +622,19 @@ vspidx_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
 /* checking if the corresponding R*Tree exists */
     if (ok_geom)
 	exists =
-	    vspidx_check_rtree (spidx->db, db_prefix, table_name, geom_column,
-				&xtable, &xgeom);
+	    vspidx_check_rtree (spidx->db, table_name, geom_column, xtable,
+				xgeom);
     else
-	exists =
-	    vspidx_find_rtree (spidx->db, db_prefix, table_name, &xtable,
-			       &xgeom);
+	exists = vspidx_find_rtree (spidx->db, table_name, xtable, xgeom);
     if (!exists)
 	goto stop;
 
 /* building the RTree query */
-    idx_name = sqlite3_mprintf ("idx_%s_%s", xtable, xgeom);
-    idx_nameQ = gaiaDoubleQuotedSql (idx_name);
-    if (db_prefix == NULL)
-      {
-	  sql_statement = sqlite3_mprintf ("SELECT pkid FROM \"%s\" WHERE "
-					   "xmin <= ? AND xmax >= ? AND ymin <= ? AND ymax >= ?",
-					   idx_nameQ);
-      }
-    else
-      {
-	  char *quoted_db = gaiaDoubleQuotedSql (db_prefix);
-	  sql_statement =
-	      sqlite3_mprintf ("SELECT pkid FROM \"%s\".\"%s\" WHERE "
-			       "xmin <= ? AND xmax >= ? AND ymin <= ? AND ymax >= ?",
-			       quoted_db, idx_nameQ);
-	  free (quoted_db);
-      }
-    free (idx_nameQ);
-    sqlite3_free (idx_name);
-    ret =
-	sqlite3_prepare_v2 (spidx->db, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
+    sprintf (idx_name, "idx_%s_%s", xtable, xgeom);
+    vspidx_double_quoted_sql (idx_name);
+    sprintf (sql, "SELECT pkid FROM %s WHERE ", idx_name);
+    strcat (sql, "xmin <= ? AND xmax >= ? AND ymin <= ? AND ymax >= ?");
+    ret = sqlite3_prepare_v2 (spidx->db, sql, strlen (sql), &stmt, NULL);
     if (ret != SQLITE_OK)
 	goto stop;
 /* binding stmt params [MBR] */
@@ -781,14 +671,6 @@ vspidx_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
   stop:
     if (geom)
 	gaiaFreeGeomColl (geom);
-    if (xtable)
-	free (xtable);
-    if (xgeom)
-	free (xgeom);
-    if (db_prefix)
-	free (db_prefix);
-    if (table_name)
-	free (table_name);
     return SQLITE_OK;
 }
 

@@ -42,11 +42,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
  
 */
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 

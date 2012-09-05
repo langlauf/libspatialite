@@ -49,18 +49,13 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <string.h>
 #include <float.h>
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-#include "config-msvc.h"
-#else
 #include "config.h"
-#endif
 
 #include <spatialite/sqlite.h>
 #include <spatialite/debug.h>
 
 #include <spatialite/spatialite.h>
 #include <spatialite/gaiageo.h>
-#include <spatialite/gaiaaux.h>
 
 #ifdef _WIN32
 #define strcasecmp	_stricmp
@@ -295,6 +290,25 @@ cache_bitmask (int x)
     return 0x00000000;
 }
 
+static void
+mbrc_double_quoted_sql (char *buf)
+{
+/* well-formatting a string to be used as an SQL name */
+    char tmp[1024];
+    char *in = tmp;
+    char *out = buf;
+    strcpy (tmp, buf);
+    *out++ = '"';
+    while (*in != '\0')
+      {
+	  if (*in == '"')
+	      *out++ = '"';
+	  *out++ = *in++;
+      }
+    *out++ = '"';
+    *out = '\0';
+}
+
 static struct mbr_cache *
 cache_alloc (void)
 {
@@ -484,7 +498,7 @@ retrieving any existing entity from the main table
 */
     sqlite3_stmt *stmt;
     int ret;
-    char *sql_statement;
+    char sql[256];
     sqlite3_int64 rowid;
     double minx;
     double maxx;
@@ -496,20 +510,16 @@ retrieving any existing entity from the main table
     int v4;
     int v5;
     struct mbr_cache *p_cache;
-    char *xcolumn;
-    char *xtable;
-    xcolumn = gaiaDoubleQuotedSql (column);
-    xtable = gaiaDoubleQuotedSql (table);
-    sql_statement =
-	sqlite3_mprintf ("SELECT ROWID, MbrMinX(\"%s\"), MbrMinY(\"%s\"), "
-			 "MbrMaxX(\"%s\"), MbrMaxY(\"%s\") FROM \"%s\"",
-			 xcolumn, xcolumn, xcolumn, xcolumn, xtable);
-    free (xcolumn);
-    free (xtable);
-    ret =
-	sqlite3_prepare_v2 (handle, sql_statement, strlen (sql_statement),
-			    &stmt, NULL);
-    sqlite3_free (sql_statement);
+    char xcolumn[1024];
+    char xtable[1024];
+    strcpy (xcolumn, column);
+    mbrc_double_quoted_sql (xcolumn);
+    strcpy (xtable, table);
+    mbrc_double_quoted_sql (xtable);
+    sprintf (sql,
+	     "SELECT ROWID, MbrMinX(%s), MbrMinY(%s), MbrMaxX(%s), MbrMaxY(%s) FROM %s",
+	     xcolumn, xcolumn, xcolumn, xcolumn, xtable);
+    ret = sqlite3_prepare_v2 (handle, sql, strlen (sql), &stmt, NULL);
     if (ret != SQLITE_OK)
       {
 /* some error occurred */
@@ -877,15 +887,15 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     const char *table;
     const char *column;
     const char *col_name;
-    char *xvtable = NULL;
-    char *xtable = NULL;
-    char *xcolumn = NULL;
     char **results;
     char *err_msg = NULL;
-    char *sql_statement;
+    char sql[4096];
     int ok_col;
     MbrCachePtr p_vt;
-    char *xname;
+    char xname[1024];
+    char x_vtable[1024];
+    char x_table[1024];
+    char x_column[1024];
     if (pAux)
 	pAux = pAux;		/* unused arg warning suppression */
     p_vt = (MbrCachePtr) sqlite3_malloc (sizeof (MbrCache));
@@ -908,8 +918,10 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	      && (*(vtable + len - 1) == '\'' || *(vtable + len - 1) == '"'))
 	    {
 /* the VirtualTableName is enclosed between quotes - we need to dequote it */
-		xvtable = gaiaDequotedSql (vtable);
-		vtable = xvtable;
+		strcpy (x_vtable, vtable + 1);
+		len = strlen (x_vtable);
+		*(x_vtable + len - 1) = '\0';
+		vtable = x_vtable;
 	    }
 	  table = argv[3];
 	  len = strlen (table);
@@ -917,8 +929,10 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	      && (*(table + len - 1) == '\'' || *(table + len - 1) == '"'))
 	    {
 /* the MainTableName is enclosed between quotes - we need to dequote it */
-		xtable = gaiaDequotedSql (table);
-		table = xtable;
+		strcpy (x_table, table + 1);
+		len = strlen (x_table);
+		*(x_table + len - 1) = '\0';
+		table = x_table;
 	    }
 	  column = argv[4];
 	  len = strlen (column);
@@ -926,8 +940,10 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	      && (*(column + len - 1) == '\'' || *(column + len - 1) == '"'))
 	    {
 /* the GeometryColumnName is enclosed between quotes - we need to dequote it */
-		xcolumn = gaiaDequotedSql (column);
-		column = xcolumn;
+		strcpy (x_column, column + 1);
+		len = strlen (x_column);
+		*(x_column + len - 1) = '\0';
+		column = x_column;
 	    }
 	  len = strlen (table);
 	  p_vt->table_name = sqlite3_malloc (len + 1);
@@ -935,10 +951,6 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	  len = strlen (column);
 	  p_vt->column_name = sqlite3_malloc (len + 1);
 	  strcpy (p_vt->column_name, column);
-	  if (xtable)
-	      free (xtable);
-	  if (xcolumn)
-	      free (xcolumn);
       }
     else
       {
@@ -950,16 +962,12 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 /* retrieving the base table columns */
     err = 0;
     ok_col = 0;
-    xname = gaiaDoubleQuotedSql (p_vt->table_name);
-    sql_statement = sqlite3_mprintf ("PRAGMA table_info(\"%s\")", xname);
-    free (xname);
-    ret =
-	sqlite3_get_table (db, sql_statement, &results, &n_rows, &n_columns,
-			   &err_msg);
-    sqlite3_free (sql_statement);
+    strcpy (xname, table);
+    mbrc_double_quoted_sql (xname);
+    sprintf (sql, "PRAGMA table_info(%s)", xname);
+    ret = sqlite3_get_table (db, sql, &results, &n_rows, &n_columns, &err_msg);
     if (ret != SQLITE_OK)
       {
-	  sqlite3_free (sql_statement);
 	  err = 1;
 	  goto illegal;
       }
@@ -968,7 +976,7 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
 	  for (i = 1; i <= n_rows; i++)
 	    {
 		col_name = results[(i * n_columns) + 1];
-		if (strcasecmp (col_name, p_vt->column_name) == 0)
+		if (strcasecmp (col_name, column) == 0)
 		    ok_col = 1;
 	    }
 	  sqlite3_free_table (results);
@@ -981,40 +989,33 @@ mbrc_create (sqlite3 * db, void *pAux, int argc, const char *const *argv,
     if (err)
       {
 	  /* something is going the wrong way; creating a stupid default table */
-	  xname = gaiaDoubleQuotedSql (vtable);
-	  sql_statement =
-	      sqlite3_mprintf ("CREATE TABLE \"%s\" (rowid INTEGER, mbr BLOB)",
-			       xname);
-	  free (xname);
-	  if (sqlite3_declare_vtab (db, sql_statement) != SQLITE_OK)
+	  strcpy (xname, vtable);
+	  mbrc_double_quoted_sql (xname);
+	  sprintf (sql, "CREATE TABLE %s (rowid INTEGER, mbr BLOB)", xname);
+	  if (sqlite3_declare_vtab (db, sql) != SQLITE_OK)
 	    {
-		sqlite3_free (sql_statement);
 		*pzErr =
 		    sqlite3_mprintf
 		    ("[MbrCache module] cannot build the VirtualTable\n");
 		return SQLITE_ERROR;
 	    }
-	  sqlite3_free (sql_statement);
 	  p_vt->error = 1;
 	  *ppVTab = (sqlite3_vtab *) p_vt;
 	  return SQLITE_OK;
       }
     p_vt->error = 0;
-    xname = gaiaDoubleQuotedSql (vtable);
-    sql_statement =
-	sqlite3_mprintf ("CREATE TABLE \"%s\" (rowid INTEGER, mbr BLOB)",
-			 xname);
-    free (xname);
-    if (sqlite3_declare_vtab (db, sql_statement) != SQLITE_OK)
+    strcpy (xname, vtable);
+    mbrc_double_quoted_sql (xname);
+    sprintf (sql, "CREATE TABLE %s (", xname);
+    strcat (sql, "rowid INTEGER, mbr BLOB)");
+    if (sqlite3_declare_vtab (db, sql) != SQLITE_OK)
       {
 	  *pzErr =
 	      sqlite3_mprintf
 	      ("[MbrCache module] CREATE VIRTUAL: invalid SQL statement \"%s\"",
-	       sql_statement);
-	  sqlite3_free (sql_statement);
+	       sql);
 	  return SQLITE_ERROR;
       }
-    sqlite3_free (sql_statement);
     *ppVTab = (sqlite3_vtab *) p_vt;
     return SQLITE_OK;
 }
@@ -1323,20 +1324,17 @@ mbrc_column (sqlite3_vtab_cursor * pCursor, sqlite3_context * pContext,
 	  if (column == 1)
 	    {
 		/* the MBR column */
-		char *envelope = sqlite3_mprintf ("POLYGON(("
-						  "%1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f))",
-						  cursor->current_cell->minx,
-						  cursor->current_cell->miny,
-						  cursor->current_cell->maxx,
-						  cursor->current_cell->miny,
-						  cursor->current_cell->maxx,
-						  cursor->current_cell->maxy,
-						  cursor->current_cell->minx,
-						  cursor->current_cell->maxy,
-						  cursor->current_cell->minx,
-						  cursor->current_cell->miny);
+		char envelope[1024];
+		sprintf (envelope,
+			 "POLYGON((%1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f, %1.2f %1.2f))",
+			 cursor->current_cell->minx, cursor->current_cell->miny,
+			 cursor->current_cell->maxx, cursor->current_cell->miny,
+			 cursor->current_cell->maxx, cursor->current_cell->maxy,
+			 cursor->current_cell->minx, cursor->current_cell->maxy,
+			 cursor->current_cell->minx,
+			 cursor->current_cell->miny);
 		sqlite3_result_text (pContext, envelope, strlen (envelope),
-				     sqlite3_free);
+				     SQLITE_TRANSIENT);
 	    }
       }
     return SQLITE_OK;

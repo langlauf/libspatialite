@@ -354,7 +354,7 @@ int main (int argc, char *argv[])
     free(test_str1);
     free(quoted_str);
 
-    asprintf(&test_str1, "%s", "");
+    asprintf(&test_str1, "");
     quoted_str = gaiaDoubleQuotedSql(test_str1);
     if (strcmp(quoted_str, "") != 0) {
 	fprintf(stderr, "gaiaDoubleQuotedSql failure: %s\n", quoted_str);
