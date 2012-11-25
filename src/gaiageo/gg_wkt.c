@@ -2,7 +2,7 @@
 
  gg_wkt.c -- Gaia common support for WKT encoded geometries
   
- version 3.0, 2011 July 20
+ version 4.0, 2012 August 6
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008
+Portions created by the Initial Developer are Copyright (C) 2008-2012
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -49,11 +49,13 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#ifdef SPL_AMALGAMATION		/* spatialite-amalgamation */
-#include <spatialite/sqlite3ext.h>
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "config-msvc.h"
 #else
-#include <sqlite3ext.h>
+#include "config.h"
 #endif
+
+#include <spatialite/sqlite.h>
 
 #include <spatialite/gaiageo.h>
 
@@ -71,6 +73,20 @@ gaiaOutClean (char *buffer)
       }
     if (buffer[i] == '.')
 	buffer[i] = '\0';
+    if (strcmp (buffer, "-0") == 0)
+      {
+	  /* avoiding to return embarassing NEGATIVE ZEROes */
+	  strcpy (buffer, "0");
+      }
+
+    if (strcmp (buffer, "-1.#QNAN") == 0 || strcmp (buffer, "NaN") == 0
+	|| strcmp (buffer, "1.#QNAN") == 0
+	|| strcmp (buffer, "-1.#IND") == 0 || strcmp (buffer, "1.#IND") == 0)
+      {
+	  /* on Windows a NaN could be represented in "odd" ways */
+	  /* this is intended to restore a consistent behaviour  */
+	  strcpy (buffer, "nan");
+      }
 }
 
 GAIAGEO_DECLARE void
@@ -107,7 +123,7 @@ gaiaAppendToOutBuffer (gaiaOutBufferPtr buf, const char *text)
 	  int new_size;
 	  char *new_buf;
 	  if (buf->BufferSize == 0)
-	      new_size = 1024;
+	      new_size = (len + 1) + 1024;
 	  else if (buf->BufferSize <= 4196)
 	      new_size = buf->BufferSize + (len + 1) + 4196;
 	  else if (buf->BufferSize <= 65536)
@@ -134,159 +150,194 @@ static void
 gaiaOutPointStrict (gaiaOutBufferPtr out_buf, gaiaPointPtr point, int precision)
 {
 /* formats a WKT POINT [Strict 2D] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
-    sprintf (buf_x, "%.*f", precision, point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%.*f", precision, point->Y);
+    buf_y = sqlite3_mprintf ("%.*f", precision, point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf, "%s %s", buf_x, buf_y);
+    buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutPoint (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats a WKT POINT */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
-    sprintf (buf_x, "%1.6f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.6f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.6f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.6f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf, "%s %s", buf_x, buf_y);
+    buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 GAIAGEO_DECLARE void
 gaiaOutPointZ (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats a WKT POINTZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
-    sprintf (buf_x, "%1.6f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.6f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.6f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.6f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_z, "%1.6f", point->Z);
+    buf_z = sqlite3_mprintf ("%1.6f", point->Z);
     gaiaOutClean (buf_z);
-    sprintf (buf, "%s %s %s", buf_x, buf_y, buf_z);
+    buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_z);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_z);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutPointM (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats a WKT POINTM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
-    sprintf (buf_x, "%1.6f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.6f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.6f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.6f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_m, "%1.6f", point->M);
+    buf_m = sqlite3_mprintf ("%1.6f", point->M);
     gaiaOutClean (buf_m);
-    sprintf (buf, "%s %s %s", buf_x, buf_y, buf_m);
+    buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_m);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_m);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutPointZM (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats a WKT POINTZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
-    sprintf (buf_x, "%1.6f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.6f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.6f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.6f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_z, "%1.6f", point->Z);
+    buf_z = sqlite3_mprintf ("%1.6f", point->Z);
     gaiaOutClean (buf_z);
-    sprintf (buf_m, "%1.6f", point->M);
+    buf_m = sqlite3_mprintf ("%1.6f", point->M);
     gaiaOutClean (buf_m);
-    sprintf (buf, "%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+    buf = sqlite3_mprintf ("%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_z);
+    sqlite3_free (buf_m);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutEwktPoint (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats an EWKT POINT */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
-    sprintf (buf_x, "%1.15f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.15f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.15f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.15f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf, "%s %s", buf_x, buf_y);
+    buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 GAIAGEO_DECLARE void
 gaiaOutEwktPointZ (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats an EWKT POINTZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
-    sprintf (buf_x, "%1.15f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.15f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.15f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.15f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_z, "%1.15f", point->Z);
+    buf_z = sqlite3_mprintf ("%1.15f", point->Z);
     gaiaOutClean (buf_z);
-    sprintf (buf, "%s %s %s", buf_x, buf_y, buf_z);
+    buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_z);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_z);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutEwktPointM (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats an EWKT POINTM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
-    sprintf (buf_x, "%1.15f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.15f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.15f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.15f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_m, "%1.15f", point->M);
+    buf_m = sqlite3_mprintf ("%1.15f", point->M);
     gaiaOutClean (buf_m);
-    sprintf (buf, "%s %s %s", buf_x, buf_y, buf_m);
+    buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_m);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_m);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 gaiaOutEwktPointZM (gaiaOutBufferPtr out_buf, gaiaPointPtr point)
 {
 /* formats an EWKT POINTZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
-    sprintf (buf_x, "%1.15f", point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%1.15f", point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%1.15f", point->Y);
+    buf_y = sqlite3_mprintf ("%1.15f", point->Y);
     gaiaOutClean (buf_y);
-    sprintf (buf_z, "%1.15f", point->Z);
+    buf_z = sqlite3_mprintf ("%1.15f", point->Z);
     gaiaOutClean (buf_z);
-    sprintf (buf_m, "%1.15f", point->M);
+    buf_m = sqlite3_mprintf ("%1.15f", point->M);
     gaiaOutClean (buf_m);
-    sprintf (buf, "%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+    buf = sqlite3_mprintf ("%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
+    sqlite3_free (buf_z);
+    sqlite3_free (buf_m);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
@@ -294,9 +345,9 @@ gaiaOutLinestringStrict (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line,
 			 int precision)
 {
 /* formats a WKT LINESTRING [Strict 2D] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     double x;
     double y;
     double z;
@@ -320,15 +371,18 @@ gaiaOutLinestringStrict (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line,
 	    {
 		gaiaGetPoint (line->Coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, y);
 	  gaiaOutClean (buf_y);
 	  if (iv > 0)
-	      sprintf (buf, ",%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
 	  else
-	      sprintf (buf, "%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -336,24 +390,27 @@ static void
 gaiaOutLinestring (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats a WKT LINESTRING */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     double x;
     double y;
     int iv;
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPoint (line->Coords, iv, &x, &y);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
 	  if (iv > 0)
-	      sprintf (buf, ", %s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (", %s %s", buf_x, buf_y);
 	  else
-	      sprintf (buf, "%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -361,10 +418,10 @@ GAIAGEO_DECLARE void
 gaiaOutLinestringZ (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats a WKT LINESTRINGZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     double x;
     double y;
     double z;
@@ -372,17 +429,21 @@ gaiaOutLinestringZ (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYZ (line->Coords, iv, &x, &y, &z);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.6f", z);
+	  buf_z = sqlite3_mprintf ("%1.6f", z);
 	  gaiaOutClean (buf_z);
 	  if (iv > 0)
-	      sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_z);
 	  else
-	      sprintf (buf, "%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_z);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -390,10 +451,10 @@ static void
 gaiaOutLinestringM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats a WKT LINESTRINGM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
     double x;
     double y;
     double m;
@@ -401,17 +462,21 @@ gaiaOutLinestringM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYM (line->Coords, iv, &x, &y, &m);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_m, "%1.6f", m);
+	  buf_m = sqlite3_mprintf ("%1.6f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv > 0)
-	      sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_m);
 	  else
-	      sprintf (buf, "%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -419,11 +484,11 @@ static void
 gaiaOutLinestringZM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats a WKT LINESTRINGZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
     double x;
     double y;
     double z;
@@ -432,19 +497,25 @@ gaiaOutLinestringZM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYZM (line->Coords, iv, &x, &y, &z, &m);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.6f", z);
+	  buf_z = sqlite3_mprintf ("%1.6f", z);
 	  gaiaOutClean (buf_z);
-	  sprintf (buf_m, "%1.6f", m);
+	  buf_m = sqlite3_mprintf ("%1.6f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv > 0)
-	      sprintf (buf, ", %s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (", %s %s %s %s", buf_x, buf_y, buf_z, buf_m);
 	  else
-	      sprintf (buf, "%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf = sqlite3_mprintf ("%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -452,24 +523,27 @@ static void
 gaiaOutEwktLinestring (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats an EWKT LINESTRING */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     double x;
     double y;
     int iv;
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPoint (line->Coords, iv, &x, &y);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
 	  if (iv > 0)
-	      sprintf (buf, ",%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
 	  else
-	      sprintf (buf, "%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -477,10 +551,10 @@ GAIAGEO_DECLARE void
 gaiaOutEwktLinestringZ (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats an EWKT LINESTRINGZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     double x;
     double y;
     double z;
@@ -488,17 +562,21 @@ gaiaOutEwktLinestringZ (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYZ (line->Coords, iv, &x, &y, &z);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.15f", z);
+	  buf_z = sqlite3_mprintf ("%1.15f", z);
 	  gaiaOutClean (buf_z);
 	  if (iv > 0)
-	      sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_z);
 	  else
-	      sprintf (buf, "%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_z);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -506,10 +584,10 @@ static void
 gaiaOutEwktLinestringM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats an EWKT LINESTRINGM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
     double x;
     double y;
     double m;
@@ -517,17 +595,21 @@ gaiaOutEwktLinestringM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYM (line->Coords, iv, &x, &y, &m);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_m, "%1.15f", m);
+	  buf_m = sqlite3_mprintf ("%1.15f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv > 0)
-	      sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_m);
 	  else
-	      sprintf (buf, "%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -535,11 +617,11 @@ static void
 gaiaOutEwktLinestringZM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
 {
 /* formats an EWKT LINESTRINGZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
     double x;
     double y;
     double z;
@@ -548,19 +630,25 @@ gaiaOutEwktLinestringZM (gaiaOutBufferPtr out_buf, gaiaLinestringPtr line)
     for (iv = 0; iv < line->Points; iv++)
       {
 	  gaiaGetPointXYZM (line->Coords, iv, &x, &y, &z, &m);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.15f", z);
+	  buf_z = sqlite3_mprintf ("%1.15f", z);
 	  gaiaOutClean (buf_z);
-	  sprintf (buf_m, "%1.15f", m);
+	  buf_m = sqlite3_mprintf ("%1.15f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv > 0)
-	      sprintf (buf, ",%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (",%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
 	  else
-	      sprintf (buf, "%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf = sqlite3_mprintf ("%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -569,9 +657,9 @@ gaiaOutPolygonStrict (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg,
 		      int precision)
 {
 /* formats a WKT POLYGON [Strict 2D] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -597,17 +685,20 @@ gaiaOutPolygonStrict (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg,
 	    {
 		gaiaGetPoint (ring->Coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, y);
 	  gaiaOutClean (buf_y);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("(%s %s", buf_x, buf_y);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ",%s %s)", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s)", buf_x, buf_y);
 	  else
-	      sprintf (buf, ",%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -630,17 +721,20 @@ gaiaOutPolygonStrict (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg,
 		  {
 		      gaiaGetPoint (ring->Coords, iv, &x, &y);
 		  }
-		sprintf (buf_x, "%.*f", precision, x);
+		buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%.*f", precision, y);
+		buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		gaiaOutClean (buf_y);
 		if (iv == 0)
-		    sprintf (buf, ",(%s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",(%s %s", buf_x, buf_y);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ",%s %s)", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",%s %s)", buf_x, buf_y);
 		else
-		    sprintf (buf, ",%s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -649,9 +743,9 @@ static void
 gaiaOutPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats a WKT POLYGON */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -660,17 +754,20 @@ gaiaOutPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPoint (ring->Coords, iv, &x, &y);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("(%s %s", buf_x, buf_y);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ", %s %s)", buf_x, buf_y);
+	      buf = sqlite3_mprintf (", %s %s)", buf_x, buf_y);
 	  else
-	      sprintf (buf, ", %s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (", %s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -678,17 +775,20 @@ gaiaOutPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPoint (ring->Coords, iv, &x, &y);
-		sprintf (buf_x, "%1.6f", x);
+		buf_x = sqlite3_mprintf ("%1.6f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.6f", y);
+		buf_y = sqlite3_mprintf ("%1.6f", y);
 		gaiaOutClean (buf_y);
 		if (iv == 0)
-		    sprintf (buf, ", (%s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (", (%s %s", buf_x, buf_y);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ", %s %s)", buf_x, buf_y);
+		    buf = sqlite3_mprintf (", %s %s)", buf_x, buf_y);
 		else
-		    sprintf (buf, ", %s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (", %s %s", buf_x, buf_y);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -697,10 +797,10 @@ GAIAGEO_DECLARE void
 gaiaOutPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats a WKT POLYGONZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -710,19 +810,23 @@ gaiaOutPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYZ (ring->Coords, iv, &x, &y, &z);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.6f", z);
+	  buf_z = sqlite3_mprintf ("%1.6f", z);
 	  gaiaOutClean (buf_z);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf ("(%s %s %s", buf_x, buf_y, buf_z);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ", %s %s %s)", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (", %s %s %s)", buf_x, buf_y, buf_z);
 	  else
-	      sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_z);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -730,19 +834,23 @@ gaiaOutPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYZ (ring->Coords, iv, &x, &y, &z);
-		sprintf (buf_x, "%1.6f", x);
+		buf_x = sqlite3_mprintf ("%1.6f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.6f", y);
+		buf_y = sqlite3_mprintf ("%1.6f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_z, "%1.6f", z);
+		buf_z = sqlite3_mprintf ("%1.6f", z);
 		gaiaOutClean (buf_z);
 		if (iv == 0)
-		    sprintf (buf, ", (%s %s %s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (", (%s %s %s", buf_x, buf_y, buf_z);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ", %s %s %s)", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (", %s %s %s)", buf_x, buf_y, buf_z);
 		else
-		    sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_z);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -751,10 +859,10 @@ static void
 gaiaOutPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats a WKT POLYGONM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -764,19 +872,23 @@ gaiaOutPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYM (ring->Coords, iv, &x, &y, &m);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_m, "%1.6f", m);
+	  buf_m = sqlite3_mprintf ("%1.6f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf ("(%s %s %s", buf_x, buf_y, buf_m);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ", %s %s %s)", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (", %s %s %s)", buf_x, buf_y, buf_m);
 	  else
-	      sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -784,19 +896,23 @@ gaiaOutPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYM (ring->Coords, iv, &x, &y, &m);
-		sprintf (buf_x, "%1.6f", x);
+		buf_x = sqlite3_mprintf ("%1.6f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.6f", y);
+		buf_y = sqlite3_mprintf ("%1.6f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_m, "%1.6f", m);
+		buf_m = sqlite3_mprintf ("%1.6f", m);
 		gaiaOutClean (buf_m);
 		if (iv == 0)
-		    sprintf (buf, ", (%s %s %s", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (", (%s %s %s", buf_x, buf_y, buf_m);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ", %s %s %s)", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (", %s %s %s)", buf_x, buf_y, buf_m);
 		else
-		    sprintf (buf, ", %s %s %s", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (", %s %s %s", buf_x, buf_y, buf_m);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_m);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -805,11 +921,11 @@ static void
 gaiaOutPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats a WKT POLYGONZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -820,21 +936,30 @@ gaiaOutPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYZM (ring->Coords, iv, &x, &y, &z, &m);
-	  sprintf (buf_x, "%1.6f", x);
+	  buf_x = sqlite3_mprintf ("%1.6f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.6f", y);
+	  buf_y = sqlite3_mprintf ("%1.6f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.6f", z);
+	  buf_z = sqlite3_mprintf ("%1.6f", z);
 	  gaiaOutClean (buf_z);
-	  sprintf (buf_m, "%1.6f", m);
+	  buf_m = sqlite3_mprintf ("%1.6f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf ("(%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ", %s %s %s %s)", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (", %s %s %s %s)", buf_x, buf_y, buf_z,
+				   buf_m);
 	  else
-	      sprintf (buf, ", %s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (", %s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -842,21 +967,32 @@ gaiaOutPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYZM (ring->Coords, iv, &x, &y, &z, &m);
-		sprintf (buf_x, "%1.6f", x);
+		buf_x = sqlite3_mprintf ("%1.6f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.6f", y);
+		buf_y = sqlite3_mprintf ("%1.6f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_z, "%1.6f", z);
+		buf_z = sqlite3_mprintf ("%1.6f", z);
 		gaiaOutClean (buf_z);
-		sprintf (buf_m, "%1.6f", m);
+		buf_m = sqlite3_mprintf ("%1.6f", m);
 		gaiaOutClean (buf_m);
 		if (iv == 0)
-		    sprintf (buf, ", (%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (", (%s %s %s %s", buf_x, buf_y, buf_z,
+					 buf_m);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ", %s %s %s %s)", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (", %s %s %s %s)", buf_x, buf_y, buf_z,
+					 buf_m);
 		else
-		    sprintf (buf, ", %s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (", %s %s %s %s", buf_x, buf_y, buf_z,
+					 buf_m);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
+		sqlite3_free (buf_m);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -865,9 +1001,9 @@ static void
 gaiaOutEwktPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats an EWKT POLYGON */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -876,17 +1012,20 @@ gaiaOutEwktPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPoint (ring->Coords, iv, &x, &y);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("(%s %s", buf_x, buf_y);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ",%s %s)", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s)", buf_x, buf_y);
 	  else
-	      sprintf (buf, ",%s %s", buf_x, buf_y);
+	      buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -894,17 +1033,20 @@ gaiaOutEwktPolygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPoint (ring->Coords, iv, &x, &y);
-		sprintf (buf_x, "%1.15f", x);
+		buf_x = sqlite3_mprintf ("%1.15f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.15f", y);
+		buf_y = sqlite3_mprintf ("%1.15f", y);
 		gaiaOutClean (buf_y);
 		if (iv == 0)
-		    sprintf (buf, ",(%s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",(%s %s", buf_x, buf_y);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ",%s %s)", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",%s %s)", buf_x, buf_y);
 		else
-		    sprintf (buf, ",%s %s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (",%s %s", buf_x, buf_y);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -913,10 +1055,10 @@ GAIAGEO_DECLARE void
 gaiaOutEwktPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats an EWKT POLYGONZ */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -926,19 +1068,23 @@ gaiaOutEwktPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYZ (ring->Coords, iv, &x, &y, &z);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.15f", z);
+	  buf_z = sqlite3_mprintf ("%1.15f", z);
 	  gaiaOutClean (buf_z);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf ("(%s %s %s", buf_x, buf_y, buf_z);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ",%s %s %s)", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (",%s %s %s)", buf_x, buf_y, buf_z);
 	  else
-	      sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_z);
+	      buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_z);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -946,19 +1092,23 @@ gaiaOutEwktPolygonZ (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYZ (ring->Coords, iv, &x, &y, &z);
-		sprintf (buf_x, "%1.15f", x);
+		buf_x = sqlite3_mprintf ("%1.15f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.15f", y);
+		buf_y = sqlite3_mprintf ("%1.15f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_z, "%1.15f", z);
+		buf_z = sqlite3_mprintf ("%1.15f", z);
 		gaiaOutClean (buf_z);
 		if (iv == 0)
-		    sprintf (buf, ",(%s %s %s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (",(%s %s %s", buf_x, buf_y, buf_z);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ",%s %s %s)", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (",%s %s %s)", buf_x, buf_y, buf_z);
 		else
-		    sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_z);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -967,10 +1117,10 @@ static void
 gaiaOutEwktPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats an EWKT POLYGONM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -980,19 +1130,23 @@ gaiaOutEwktPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYM (ring->Coords, iv, &x, &y, &m);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_m, "%1.15f", m);
+	  buf_m = sqlite3_mprintf ("%1.15f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf ("(%s %s %s", buf_x, buf_y, buf_m);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ",%s %s %s)", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (",%s %s %s)", buf_x, buf_y, buf_m);
 	  else
-	      sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_m);
+	      buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -1000,19 +1154,23 @@ gaiaOutEwktPolygonM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYM (ring->Coords, iv, &x, &y, &m);
-		sprintf (buf_x, "%1.15f", x);
+		buf_x = sqlite3_mprintf ("%1.15f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.15f", y);
+		buf_y = sqlite3_mprintf ("%1.15f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_m, "%1.15f", m);
+		buf_m = sqlite3_mprintf ("%1.15f", m);
 		gaiaOutClean (buf_m);
 		if (iv == 0)
-		    sprintf (buf, ",(%s %s %s", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (",(%s %s %s", buf_x, buf_y, buf_m);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ",%s %s %s)", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (",%s %s %s)", buf_x, buf_y, buf_m);
 		else
-		    sprintf (buf, ",%s %s %s", buf_x, buf_y, buf_m);
+		    buf = sqlite3_mprintf (",%s %s %s", buf_x, buf_y, buf_m);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_m);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -1021,11 +1179,11 @@ static void
 gaiaOutEwktPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 {
 /* formats an EWKT POLYGONZM */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf_m[128];
-    char buf[1024];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf_m;
+    char *buf;
     int ib;
     int iv;
     double x;
@@ -1036,21 +1194,29 @@ gaiaOutEwktPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
     for (iv = 0; iv < ring->Points; iv++)
       {
 	  gaiaGetPointXYZM (ring->Coords, iv, &x, &y, &z, &m);
-	  sprintf (buf_x, "%1.15f", x);
+	  buf_x = sqlite3_mprintf ("%1.15f", x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%1.15f", y);
+	  buf_y = sqlite3_mprintf ("%1.15f", y);
 	  gaiaOutClean (buf_y);
-	  sprintf (buf_z, "%1.15f", z);
+	  buf_z = sqlite3_mprintf ("%1.15f", z);
 	  gaiaOutClean (buf_z);
-	  sprintf (buf_m, "%1.15f", m);
+	  buf_m = sqlite3_mprintf ("%1.15f", m);
 	  gaiaOutClean (buf_m);
 	  if (iv == 0)
-	      sprintf (buf, "(%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf ("(%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
 	  else if (iv == (ring->Points - 1))
-	      sprintf (buf, ",%s %s %s %s)", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (",%s %s %s %s)", buf_x, buf_y, buf_z, buf_m);
 	  else
-	      sprintf (buf, ",%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	      buf =
+		  sqlite3_mprintf (",%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
+	  sqlite3_free (buf_z);
+	  sqlite3_free (buf_m);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     for (ib = 0; ib < polyg->NumInteriors; ib++)
       {
@@ -1058,21 +1224,32 @@ gaiaOutEwktPolygonZM (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polyg)
 	  for (iv = 0; iv < ring->Points; iv++)
 	    {
 		gaiaGetPointXYZM (ring->Coords, iv, &x, &y, &z, &m);
-		sprintf (buf_x, "%1.15f", x);
+		buf_x = sqlite3_mprintf ("%1.15f", x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%1.15f", y);
+		buf_y = sqlite3_mprintf ("%1.15f", y);
 		gaiaOutClean (buf_y);
-		sprintf (buf_z, "%1.15f", z);
+		buf_z = sqlite3_mprintf ("%1.15f", z);
 		gaiaOutClean (buf_z);
-		sprintf (buf_m, "%1.15f", m);
+		buf_m = sqlite3_mprintf ("%1.15f", m);
 		gaiaOutClean (buf_m);
 		if (iv == 0)
-		    sprintf (buf, ",(%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (",(%s %s %s %s", buf_x, buf_y, buf_z,
+					 buf_m);
 		else if (iv == (ring->Points - 1))
-		    sprintf (buf, ",%s %s %s %s)", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (",%s %s %s %s)", buf_x, buf_y, buf_z,
+					 buf_m);
 		else
-		    sprintf (buf, ",%s %s %s %s", buf_x, buf_y, buf_z, buf_m);
+		    buf =
+			sqlite3_mprintf (",%s %s %s %s", buf_x, buf_y, buf_z,
+					 buf_m);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
+		sqlite3_free (buf_m);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
       }
 }
@@ -1459,6 +1636,8 @@ gaiaOutWktStrict (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision)
     gaiaPointPtr point;
     gaiaLinestringPtr line;
     gaiaPolygonPtr polyg;
+    if (precision > 18)
+	precision = 18;
     if (!geom)
 	return;
     point = geom->FirstPoint;
@@ -1987,30 +2166,36 @@ static void
 SvgCoords (gaiaOutBufferPtr out_buf, gaiaPointPtr point, int precision)
 {
 /* formats POINT as SVG-attributes x,y */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
-    sprintf (buf_x, "%.*f", precision, point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%.*f", precision, point->Y * -1);
+    buf_y = sqlite3_mprintf ("%.*f", precision, point->Y * -1);
     gaiaOutClean (buf_y);
-    sprintf (buf, "x=\"%s\" y=\"%s\"", buf_x, buf_y);
+    buf = sqlite3_mprintf ("x=\"%s\" y=\"%s\"", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
 SvgCircle (gaiaOutBufferPtr out_buf, gaiaPointPtr point, int precision)
 {
 /* formats POINT as SVG-attributes cx,cy */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
-    sprintf (buf_x, "%.*f", precision, point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%.*f", precision, point->Y * -1);
+    buf_y = sqlite3_mprintf ("%.*f", precision, point->Y * -1);
     gaiaOutClean (buf_y);
-    sprintf (buf, "cx=\"%s\" cy=\"%s\"", buf_x, buf_y);
+    buf = sqlite3_mprintf ("cx=\"%s\" cy=\"%s\"", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
 }
 
 static void
@@ -2018,9 +2203,9 @@ SvgPathRelative (gaiaOutBufferPtr out_buf, int dims, int points, double *coords,
 		 int precision, int closePath)
 {
 /* formats LINESTRING as SVG-path d-attribute with relative coordinate moves */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     double x;
     double y;
     double z;
@@ -2046,19 +2231,23 @@ SvgPathRelative (gaiaOutBufferPtr out_buf, int dims, int points, double *coords,
 	    {
 		gaiaGetPoint (coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x - lastX);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x - lastX);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, (y - lastY) * -1);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, (y - lastY) * -1);
 	  gaiaOutClean (buf_y);
 	  if (iv == 0)
-	      sprintf (buf, "M %s %s l ", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("M %s %s l ", buf_x, buf_y);
 	  else
-	      sprintf (buf, "%s %s ", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("%s %s ", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  lastX = x;
 	  lastY = y;
 	  if (iv == points - 1 && closePath == 1)
-	      sprintf (buf, "z ");
-	  gaiaAppendToOutBuffer (out_buf, buf);
+	      gaiaAppendToOutBuffer (out_buf, "z ");
+	  else
+	      gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -2067,9 +2256,9 @@ SvgPathAbsolute (gaiaOutBufferPtr out_buf, int dims, int points, double *coords,
 		 int precision, int closePath)
 {
 /* formats LINESTRING as SVG-path d-attribute with relative coordinate moves */
-    char buf_x[128];
-    char buf_y[128];
-    char buf[256];
+    char *buf_x;
+    char *buf_y;
+    char *buf;
     double x;
     double y;
     double z;
@@ -2093,17 +2282,21 @@ SvgPathAbsolute (gaiaOutBufferPtr out_buf, int dims, int points, double *coords,
 	    {
 		gaiaGetPoint (coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, y * -1);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, y * -1);
 	  gaiaOutClean (buf_y);
 	  if (iv == 0)
-	      sprintf (buf, "M %s %s L ", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("M %s %s L ", buf_x, buf_y);
 	  else
-	      sprintf (buf, "%s %s ", buf_x, buf_y);
+	      buf = sqlite3_mprintf ("%s %s ", buf_x, buf_y);
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  if (iv == points - 1 && closePath == 1)
-	      sprintf (buf, "z ");
-	  gaiaAppendToOutBuffer (out_buf, buf);
+	      gaiaAppendToOutBuffer (out_buf, "z ");
+	  else
+	      gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
 }
 
@@ -2120,6 +2313,8 @@ gaiaOutSvg (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int relative,
     gaiaLinestringPtr line;
     gaiaPolygonPtr polyg;
     gaiaRingPtr ring;
+    if (precision > 18)
+	precision = 18;
     if (!geom)
 	return;
     point = geom->FirstPoint;
@@ -2354,6 +2549,22 @@ gaiaOutSvg (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int relative,
 		  }
 	    }
       }
+
+    if (out_buf->Error == 0 && out_buf->WriteOffset > 0)
+      {
+	  /* sandro 2012-02-23 cleaning extra trailing spaces */
+	  int i;
+	  for (i = out_buf->WriteOffset - 1; i >= 0; i--)
+	    {
+		if (*(out_buf->Buffer + i) == ' ')
+		  {
+		      *(out_buf->Buffer + i) = '\0';
+		      out_buf->WriteOffset -= 1;
+		  }
+		else
+		    break;
+	    }
+      }
 }
 
 /* END of Klaus Foerster SVG implementation */
@@ -2416,27 +2627,33 @@ static void
 out_kml_point (gaiaOutBufferPtr out_buf, gaiaPointPtr point, int precision)
 {
 /* formats POINT as KML [x,y] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
-    sprintf (buf_x, "%.*f", precision, point->X);
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
+    buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
     gaiaOutClean (buf_x);
-    sprintf (buf_y, "%.*f", precision, point->Y);
+    buf_y = sqlite3_mprintf ("%.*f", precision, point->Y);
     gaiaOutClean (buf_y);
     if (point->DimensionModel == GAIA_XY_Z
 	|| point->DimensionModel == GAIA_XY_Z_M)
       {
-	  sprintf (buf_z, "%.*f", precision, point->Z);
+	  buf_z = sqlite3_mprintf ("%.*f", precision, point->Z);
 	  gaiaOutClean (buf_z);
       }
     gaiaAppendToOutBuffer (out_buf, "<Point><coordinates>");
     if (point->DimensionModel == GAIA_XY_Z
 	|| point->DimensionModel == GAIA_XY_Z_M)
-	sprintf (buf, "%s,%s,%s", buf_x, buf_y, buf_z);
+      {
+	  buf = sqlite3_mprintf ("%s,%s,%s", buf_x, buf_y, buf_z);
+	  sqlite3_free (buf_z);
+      }
     else
-	sprintf (buf, "%s,%s", buf_x, buf_y);
+	buf = sqlite3_mprintf ("%s,%s", buf_x, buf_y);
+    sqlite3_free (buf_x);
+    sqlite3_free (buf_y);
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
     gaiaAppendToOutBuffer (out_buf, "</coordinates></Point>");
 }
 
@@ -2445,10 +2662,10 @@ out_kml_linestring (gaiaOutBuffer * out_buf, int dims, int points,
 		    double *coords, int precision)
 {
 /* formats LINESTRING as KML [x,y] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     int iv;
     double x;
     double y;
@@ -2474,27 +2691,31 @@ out_kml_linestring (gaiaOutBuffer * out_buf, int dims, int points,
 	    {
 		gaiaGetPoint (coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, y);
 	  gaiaOutClean (buf_y);
 	  if (dims == GAIA_XY_Z || dims == GAIA_XY_Z_M)
 	    {
-		sprintf (buf_z, "%.*f", precision, z);
+		buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		gaiaOutClean (buf_z);
 		if (iv == 0)
-		    sprintf (buf, "%s,%s,%s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf ("%s,%s,%s", buf_x, buf_y, buf_z);
 		else
-		    sprintf (buf, " %s,%s,%s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (" %s,%s,%s", buf_x, buf_y, buf_z);
+		sqlite3_free (buf_z);
 	    }
 	  else
 	    {
 		if (iv == 0)
-		    sprintf (buf, "%s,%s", buf_x, buf_y);
+		    buf = sqlite3_mprintf ("%s,%s", buf_x, buf_y);
 		else
-		    sprintf (buf, " %s,%s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (" %s,%s", buf_x, buf_y);
 	    }
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     gaiaAppendToOutBuffer (out_buf, "</coordinates></LineString>");
 }
@@ -2504,10 +2725,10 @@ out_kml_polygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polygon,
 		 int precision)
 {
 /* formats POLYGON as KML [x,y] */
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
-    char buf[512];
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
+    char *buf;
     gaiaRingPtr ring;
     int iv;
     int ib;
@@ -2538,28 +2759,32 @@ out_kml_polygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polygon,
 	    {
 		gaiaGetPoint (ring->Coords, iv, &x, &y);
 	    }
-	  sprintf (buf_x, "%.*f", precision, x);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, x);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, y);
 	  gaiaOutClean (buf_y);
 	  if (ring->DimensionModel == GAIA_XY_Z
 	      || ring->DimensionModel == GAIA_XY_Z_M)
 	    {
-		sprintf (buf_z, "%.*f", precision, z);
+		buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		gaiaOutClean (buf_z);
 		if (iv == 0)
-		    sprintf (buf, "%s,%s,%s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf ("%s,%s,%s", buf_x, buf_y, buf_z);
 		else
-		    sprintf (buf, " %s,%s,%s", buf_x, buf_y, buf_z);
+		    buf = sqlite3_mprintf (" %s,%s,%s", buf_x, buf_y, buf_z);
+		sqlite3_free (buf_z);
 	    }
 	  else
 	    {
 		if (iv == 0)
-		    sprintf (buf, "%s,%s", buf_x, buf_y);
+		    buf = sqlite3_mprintf ("%s,%s", buf_x, buf_y);
 		else
-		    sprintf (buf, " %s,%s", buf_x, buf_y);
+		    buf = sqlite3_mprintf (" %s,%s", buf_x, buf_y);
 	    }
+	  sqlite3_free (buf_x);
+	  sqlite3_free (buf_y);
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
       }
     gaiaAppendToOutBuffer (out_buf,
 			   "</coordinates></LinearRing></outerBoundaryIs>");
@@ -2588,34 +2813,40 @@ out_kml_polygon (gaiaOutBufferPtr out_buf, gaiaPolygonPtr polygon,
 		  {
 		      gaiaGetPoint (ring->Coords, iv, &x, &y);
 		  }
-		sprintf (buf_x, "%.*f", precision, x);
+		buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%.*f", precision, y);
+		buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		gaiaOutClean (buf_y);
 		if (ring->DimensionModel == GAIA_XY_Z
 		    || ring->DimensionModel == GAIA_XY_Z_M)
 		  {
-		      sprintf (buf_z, "%.*f", precision, z);
+		      buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		      gaiaOutClean (buf_z);
 		      if (iv == 0)
-			  sprintf (buf, "%s,%s,%s", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf ("%s,%s,%s", buf_x, buf_y, buf_z);
 		      else
-			  sprintf (buf, " %s,%s,%s", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf (" %s,%s,%s", buf_x, buf_y,
+					       buf_z);
+		      sqlite3_free (buf_z);
 		  }
 		else
 		  {
 		      if (iv == 0)
-			  sprintf (buf, "%s,%s", buf_x, buf_y);
+			  buf = sqlite3_mprintf ("%s,%s", buf_x, buf_y);
 		      else
-			  sprintf (buf, " %s,%s", buf_x, buf_y);
+			  buf = sqlite3_mprintf (" %s,%s", buf_x, buf_y);
 		  }
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
 	  gaiaAppendToOutBuffer (out_buf,
 				 "</coordinates></LinearRing></innerBoundaryIs>");
       }
-    strcpy (buf, "</Polygon>");
-    gaiaAppendToOutBuffer (out_buf, buf);
+    gaiaAppendToOutBuffer (out_buf, "</Polygon>");
 }
 
 GAIAGEO_DECLARE void
@@ -2816,10 +3047,11 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
     int has_z;
     int is_multi = 1;
     int is_coll = 0;
-    char buf[1024];
-    char buf_x[128];
-    char buf_y[128];
-    char buf_z[128];
+    char buf[2048];
+    char *xbuf;
+    char *buf_x;
+    char *buf_y;
+    char *buf_z;
     if (!geom)
 	return;
     if (precision > 18)
@@ -2834,7 +3066,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	  is_multi = 0;
 	  break;
       case GAIA_MULTIPOINT:
-	  if (geom->Srid == -1)
+	  if (geom->Srid <= 0)
 	      strcpy (buf, "<gml:MultiPoint>");
 	  else
 	      sprintf (buf, "<gml:MultiPoint srsName=\"EPSG:%d\">", geom->Srid);
@@ -2842,7 +3074,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
       case GAIA_MULTILINESTRING:
 	  if (version == 3)
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:MultiCurve>");
 		else
 		    sprintf (buf, "<gml:MultiCurve srsName=\"EPSG:%d\">",
@@ -2850,7 +3082,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  else
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:MultiLineString>");
 		else
 		    sprintf (buf,
@@ -2861,7 +3093,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
       case GAIA_MULTIPOLYGON:
 	  if (version == 3)
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:MultiSurface>");
 		else
 		    sprintf (buf, "<gml:MultiSurface srsName=\"EPSG:%d\">",
@@ -2869,7 +3101,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  else
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:MultiPolygon>");
 		else
 		    sprintf (buf, "<gml:MultiPolygon srsName=\"EPSG:%d\">",
@@ -2877,7 +3109,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  break;
       default:
-	  if (geom->Srid == -1)
+	  if (geom->Srid <= 0)
 	      strcpy (buf, "<gml:MultiGeometry>");
 	  else
 	      sprintf (buf, "<gml:MultiGeometry srsName=\"EPSG:%d\">",
@@ -2900,7 +3132,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  else
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:Point>");
 		else
 		    sprintf (buf, "<gml:Point srsName=\"EPSG:%d\">",
@@ -2916,51 +3148,52 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  else
 	      strcat (buf, "<gml:coordinates>");
-	  sprintf (buf_x, "%.*f", precision, point->X);
+	  gaiaAppendToOutBuffer (out_buf, buf);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, point->Y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, point->Y);
 	  gaiaOutClean (buf_y);
 	  if (point->DimensionModel == GAIA_XY_Z
 	      || point->DimensionModel == GAIA_XY_Z_M)
 	    {
-		sprintf (buf_z, "%.*f", precision, point->Z);
+		buf_z = sqlite3_mprintf ("%.*f", precision, point->Z);
 		gaiaOutClean (buf_z);
 		if (version == 3)
 		  {
-		      strcat (buf, buf_x);
-		      strcat (buf, " ");
-		      strcat (buf, buf_y);
-		      strcat (buf, " ");
-		      strcat (buf, buf_z);
+		      xbuf = sqlite3_mprintf ("%s %s %s", buf_x, buf_y, buf_z);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
+		      sqlite3_free (buf_z);
 		  }
 		else
 		  {
-		      strcat (buf, buf_x);
-		      strcat (buf, ",");
-		      strcat (buf, buf_y);
-		      strcat (buf, ",");
-		      strcat (buf, buf_z);
+		      xbuf = sqlite3_mprintf ("%s,%s,%s", buf_x, buf_y, buf_z);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
+		      sqlite3_free (buf_z);
 		  }
 	    }
 	  else
 	    {
 		if (version == 3)
 		  {
-		      strcat (buf, buf_x);
-		      strcat (buf, " ");
-		      strcat (buf, buf_y);
+		      xbuf = sqlite3_mprintf ("%s %s", buf_x, buf_y);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
 		  }
 		else
 		  {
-		      strcat (buf, buf_x);
-		      strcat (buf, ",");
-		      strcat (buf, buf_y);
+		      xbuf = sqlite3_mprintf ("%s,%s", buf_x, buf_y);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
 		  }
 	    }
+	  gaiaAppendToOutBuffer (out_buf, xbuf);
+	  sqlite3_free (xbuf);
 	  if (version == 3)
-	      strcat (buf, "</gml:pos>");
+	      strcpy (buf, "</gml:pos>");
 	  else
-	      strcat (buf, "</gml:coordinates>");
+	      strcpy (buf, "</gml:coordinates>");
 	  if (is_multi)
 	    {
 		strcat (buf, "</gml:Point>");
@@ -3009,7 +3242,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    {
 		if (version == 3)
 		  {
-		      if (geom->Srid == -1)
+		      if (geom->Srid <= 0)
 			  strcpy (buf, "<gml:Curve>");
 		      else
 			  sprintf (buf, "<gml:Curve srsName=\"EPSG:%d\">",
@@ -3024,7 +3257,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 		  }
 		else
 		  {
-		      if (geom->Srid == -1)
+		      if (geom->Srid <= 0)
 			  strcpy (buf, "<gml:LineString>");
 		      else
 			  sprintf (buf, "<gml:LineString srsName=\"EPSG:%d\">",
@@ -3061,49 +3294,54 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 		    strcpy (buf, " ");
 		if (has_z)
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
-		      sprintf (buf_z, "%.*f", precision, z);
+		      buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		      gaiaOutClean (buf_z);
 		      if (version == 3)
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, " ");
-			    strcat (buf, buf_y);
-			    strcat (buf, " ");
-			    strcat (buf, buf_z);
+			    xbuf =
+				sqlite3_mprintf ("%s%s %s %s", buf, buf_x,
+						 buf_y, buf_z);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
+			    sqlite3_free (buf_z);
 			}
 		      else
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, ",");
-			    strcat (buf, buf_y);
-			    strcat (buf, ",");
-			    strcat (buf, buf_z);
+			    xbuf =
+				sqlite3_mprintf ("%s%s,%s,%s", buf, buf_x,
+						 buf_y, buf_z);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
+			    sqlite3_free (buf_z);
 			}
 		  }
 		else
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
 		      if (version == 3)
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, " ");
-			    strcat (buf, buf_y);
+			    xbuf =
+				sqlite3_mprintf ("%s%s %s", buf, buf_x, buf_y);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
 			}
 		      else
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, ",");
-			    strcat (buf, buf_y);
+			    xbuf =
+				sqlite3_mprintf ("%s%s,%s", buf, buf_x, buf_y);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
 			}
 		  }
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, xbuf);
+		sqlite3_free (xbuf);
 	    }
 	  if (is_multi)
 	    {
@@ -3182,7 +3420,7 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 	    }
 	  else
 	    {
-		if (geom->Srid == -1)
+		if (geom->Srid <= 0)
 		    strcpy (buf, "<gml:Polygon>");
 		else
 		    sprintf (buf, "<gml:Polygon srsName=\"EPSG:%d\">",
@@ -3233,49 +3471,54 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 		    strcpy (buf, " ");
 		if (has_z)
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
-		      sprintf (buf_z, "%.*f", precision, z);
+		      buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		      gaiaOutClean (buf_z);
 		      if (version == 3)
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, " ");
-			    strcat (buf, buf_y);
-			    strcat (buf, " ");
-			    strcat (buf, buf_z);
+			    xbuf =
+				sqlite3_mprintf ("%s%s %s %s", buf, buf_x,
+						 buf_y, buf_z);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
+			    sqlite3_free (buf_z);
 			}
 		      else
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, ",");
-			    strcat (buf, buf_y);
-			    strcat (buf, ",");
-			    strcat (buf, buf_z);
+			    xbuf =
+				sqlite3_mprintf ("%s%s,%s,%s", buf, buf_x,
+						 buf_y, buf_z);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
+			    sqlite3_free (buf_z);
 			}
 		  }
 		else
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
 		      if (version == 3)
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, " ");
-			    strcat (buf, buf_y);
+			    xbuf =
+				sqlite3_mprintf ("%s%s %s", buf, buf_x, buf_y);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
 			}
 		      else
 			{
-			    strcat (buf, buf_x);
-			    strcat (buf, ",");
-			    strcat (buf, buf_y);
+			    xbuf =
+				sqlite3_mprintf ("%s%s,%s", buf, buf_x, buf_y);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
 			}
 		  }
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, xbuf);
+		sqlite3_free (xbuf);
 	    }
 	  /* closing the Exterior Ring */
 	  if (version == 3)
@@ -3340,49 +3583,56 @@ gaiaOutGml (gaiaOutBufferPtr out_buf, int version, int precision,
 			  strcpy (buf, " ");
 		      if (has_z)
 			{
-			    sprintf (buf_x, "%.*f", precision, x);
+			    buf_x = sqlite3_mprintf ("%.*f", precision, x);
 			    gaiaOutClean (buf_x);
-			    sprintf (buf_y, "%.*f", precision, y);
+			    buf_y = sqlite3_mprintf ("%.*f", precision, y);
 			    gaiaOutClean (buf_y);
-			    sprintf (buf_z, "%.*f", precision, z);
+			    buf_z = sqlite3_mprintf ("%.*f", precision, z);
 			    gaiaOutClean (buf_z);
 			    if (version == 3)
 			      {
-				  strcat (buf, buf_x);
-				  strcat (buf, " ");
-				  strcat (buf, buf_y);
-				  strcat (buf, " ");
-				  strcat (buf, buf_z);
+				  xbuf =
+				      sqlite3_mprintf ("%s%s %s %s", buf, buf_x,
+						       buf_y, buf_z);
+				  sqlite3_free (buf_x);
+				  sqlite3_free (buf_y);
+				  sqlite3_free (buf_z);
 			      }
 			    else
 			      {
-				  strcat (buf, buf_x);
-				  strcat (buf, ",");
-				  strcat (buf, buf_y);
-				  strcat (buf, ",");
-				  strcat (buf, buf_z);
+				  xbuf =
+				      sqlite3_mprintf ("%s%s,%s,%s", buf, buf_x,
+						       buf_y, buf_z);
+				  sqlite3_free (buf_x);
+				  sqlite3_free (buf_y);
+				  sqlite3_free (buf_z);
 			      }
 			}
 		      else
 			{
-			    sprintf (buf_x, "%.*f", precision, x);
+			    buf_x = sqlite3_mprintf ("%.*f", precision, x);
 			    gaiaOutClean (buf_x);
-			    sprintf (buf_y, "%.*f", precision, y);
+			    buf_y = sqlite3_mprintf ("%.*f", precision, y);
 			    gaiaOutClean (buf_y);
 			    if (version == 3)
 			      {
-				  strcat (buf, buf_x);
-				  strcat (buf, " ");
-				  strcat (buf, buf_y);
+				  xbuf =
+				      sqlite3_mprintf ("%s%s %s", buf, buf_x,
+						       buf_y);
+				  sqlite3_free (buf_x);
+				  sqlite3_free (buf_y);
 			      }
 			    else
 			      {
-				  strcat (buf, buf_x);
-				  strcat (buf, ",");
-				  strcat (buf, buf_y);
+				  xbuf =
+				      sqlite3_mprintf ("%s%s,%s", buf, buf_x,
+						       buf_y);
+				  sqlite3_free (buf_x);
+				  sqlite3_free (buf_y);
 			      }
 			}
-		      gaiaAppendToOutBuffer (out_buf, buf);
+		      gaiaAppendToOutBuffer (out_buf, xbuf);
+		      sqlite3_free (xbuf);
 		  }
 		/* closing the Interior Ring */
 		if (version == 3)
@@ -3474,13 +3724,13 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
     int has_z;
     int is_multi = 0;
     int multi_count = 0;
-    char bbox[1024];
-    char crs[1024];
-    char buf[2048];
-    char buf_x[128];
-    char buf_y[128];
-    char buf_m[128];
-    char buf_z[128];
+    char *bbox;
+    char crs[2048];
+    char *buf;
+    char *buf_x;
+    char *buf_y;
+    char *buf_m;
+    char *buf_z;
     char endJson[16];
     if (!geom)
 	return;
@@ -3489,9 +3739,9 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 
     if (options != 0)
       {
-	  *bbox = '\0';
+	  bbox = NULL;
 	  *crs = '\0';
-	  if (geom->Srid != -1)
+	  if (geom->Srid > 0)
 	    {
 		if (options == 2 || options == 3)
 		  {
@@ -3512,70 +3762,75 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 	    {
 		/* including BBOX */
 		gaiaMbrGeometry (geom);
-		sprintf (buf_x, "%.*f", precision, geom->MinX);
+		buf_x = sqlite3_mprintf ("%.*f", precision, geom->MinX);
 		gaiaOutClean (buf_x);
-		sprintf (buf_y, "%.*f", precision, geom->MinY);
+		buf_y = sqlite3_mprintf ("%.*f", precision, geom->MinY);
 		gaiaOutClean (buf_y);
-		sprintf (buf_z, "%.*f", precision, geom->MaxX);
+		buf_z = sqlite3_mprintf ("%.*f", precision, geom->MaxX);
 		gaiaOutClean (buf_z);
-		sprintf (buf_m, "%.*f", precision, geom->MaxY);
+		buf_m = sqlite3_mprintf ("%.*f", precision, geom->MaxY);
 		gaiaOutClean (buf_m);
-		sprintf (bbox, ",\"bbox\":[%s,%s,%s,%s]", buf_x, buf_y, buf_z,
-			 buf_m);
+		bbox =
+		    sqlite3_mprintf (",\"bbox\":[%s,%s,%s,%s]", buf_x, buf_y,
+				     buf_z, buf_m);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
+		sqlite3_free (buf_m);
 	    }
 	  switch (geom->DeclaredType)
 	    {
 	    case GAIA_POINT:
-		strcpy (buf, "{\"type\":\"Point\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":");
+		buf =
+		    sqlite3_mprintf ("{\"type\":\"Point\"%s%s,\"coordinates\":",
+				     crs, bbox);
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_LINESTRING:
-		strcpy (buf, "{\"type\":\"LineString\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"LineString\"%s%s,\"coordinates\":[", crs,
+		     bbox);
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_POLYGON:
-		strcpy (buf, "{\"type\":\"Polygon\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"Polygon\"%s%s,\"coordinates\":[", crs, bbox);
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_MULTIPOINT:
-		strcpy (buf, "{\"type\":\"MultiPoint\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiPoint\"%s%s,\"coordinates\":[", crs,
+		     bbox);
 		strcpy (endJson, "]}");
 		break;
 	    case GAIA_MULTILINESTRING:
-		strcpy (buf, "{\"type\":\"MultiLineString\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":[[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiLineString\"%s%s,\"coordinates\":[[",
+		     crs, bbox);
 		strcpy (endJson, "]}");
 		break;
 	    case GAIA_MULTIPOLYGON:
-		strcpy (buf, "{\"type\":\"MultiPolygon\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"coordinates\":[[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiPolygon\"%s%s,\"coordinates\":[[", crs,
+		     bbox);
 		strcpy (endJson, "]}");
 		break;
 	    default:
-		strcpy (buf, "{\"type\":\"GeometryCollection\"");
-		strcat (buf, crs);
-		strcat (buf, bbox);
-		strcat (buf, ",\"geometries\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"GeometryCollection\"%s%s,\"geometries\":[",
+		     crs, bbox);
 		strcpy (endJson, "]}");
 		is_multi = 1;
 		break;
 	    };
+	  if (bbox)
+	      sqlite3_free (bbox);
       }
     else
       {
@@ -3583,39 +3838,49 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 	  switch (geom->DeclaredType)
 	    {
 	    case GAIA_POINT:
-		strcpy (buf, "{\"type\":\"Point\",\"coordinates\":");
+		buf = sqlite3_mprintf ("{\"type\":\"Point\",\"coordinates\":");
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_LINESTRING:
-		strcpy (buf, "{\"type\":\"LineString\",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"LineString\",\"coordinates\":[");
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_POLYGON:
-		strcpy (buf, "{\"type\":\"Polygon\",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf ("{\"type\":\"Polygon\",\"coordinates\":[");
 		strcpy (endJson, "}");
 		break;
 	    case GAIA_MULTIPOINT:
-		strcpy (buf, "{\"type\":\"MultiPoint\",\"coordinates\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiPoint\",\"coordinates\":[");
 		strcpy (endJson, "]}");
 		break;
 	    case GAIA_MULTILINESTRING:
-		strcpy (buf,
-			"{\"type\":\"MultiLineString\",\"coordinates\":[[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiLineString\",\"coordinates\":[[");
 		strcpy (endJson, "]}");
 		break;
 	    case GAIA_MULTIPOLYGON:
-		strcpy (buf, "{\"type\":\"MultiPolygon\",\"coordinates\":[[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"MultiPolygon\",\"coordinates\":[[");
 		strcpy (endJson, "]}");
 		break;
 	    default:
-		strcpy (buf,
-			"{\"type\":\"GeometryCollection\",\"geometries\":[");
+		buf =
+		    sqlite3_mprintf
+		    ("{\"type\":\"GeometryCollection\",\"geometries\":[");
 		strcpy (endJson, "]}");
 		is_multi = 1;
 		break;
 	    };
       }
     gaiaAppendToOutBuffer (out_buf, buf);
+    sqlite3_free (buf);
     point = geom->FirstPoint;
     while (point)
       {
@@ -3623,38 +3888,46 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 	  if (is_multi)
 	    {
 		if (multi_count > 0)
-		    strcpy (buf, ",{\"type\":\"Point\",\"coordinates\":");
+		    buf = ",{\"type\":\"Point\",\"coordinates\":";
 		else
-		    strcpy (buf, "{\"type\":\"Point\",\"coordinates\":");
+		    buf = "{\"type\":\"Point\",\"coordinates\":";
 		gaiaAppendToOutBuffer (out_buf, buf);
 	    }
 	  else if (point != geom->FirstPoint)
 	    {
 		/* adding a further Point */
-		strcpy (buf, ",");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, ",");
 	    }
-	  sprintf (buf_x, "%.*f", precision, point->X);
+	  buf_x = sqlite3_mprintf ("%.*f", precision, point->X);
 	  gaiaOutClean (buf_x);
-	  sprintf (buf_y, "%.*f", precision, point->Y);
+	  buf_y = sqlite3_mprintf ("%.*f", precision, point->Y);
 	  gaiaOutClean (buf_y);
 	  has_z = 0;
 	  if (point->DimensionModel == GAIA_XY_Z
 	      || point->DimensionModel == GAIA_XY_Z_M)
 	    {
-		sprintf (buf_z, "%.*f", precision, point->Z);
+		buf_z = sqlite3_mprintf ("%.*f", precision, point->Z);
 		gaiaOutClean (buf_z);
 		has_z = 1;
 	    }
 	  if (has_z)
-	      sprintf (buf, "[%s,%s,%s]", buf_x, buf_y, buf_z);
+	    {
+		buf = sqlite3_mprintf ("[%s,%s,%s]", buf_x, buf_y, buf_z);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+		sqlite3_free (buf_z);
+	    }
 	  else
-	      sprintf (buf, "[%s,%s]", buf_x, buf_y);
+	    {
+		buf = sqlite3_mprintf ("[%s,%s]", buf_x, buf_y);
+		sqlite3_free (buf_x);
+		sqlite3_free (buf_y);
+	    }
 	  gaiaAppendToOutBuffer (out_buf, buf);
+	  sqlite3_free (buf);
 	  if (is_multi)
 	    {
-		strcpy (buf, "}");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, "}");
 		multi_count++;
 	    }
 	  point = point->Next;
@@ -3666,16 +3939,15 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 	  if (is_multi)
 	    {
 		if (multi_count > 0)
-		    strcpy (buf, ",{\"type\":\"LineString\",\"coordinates\":[");
+		    buf = ",{\"type\":\"LineString\",\"coordinates\":[";
 		else
-		    strcpy (buf, "{\"type\":\"LineString\",\"coordinates\":[");
+		    buf = "{\"type\":\"LineString\",\"coordinates\":[";
 		gaiaAppendToOutBuffer (out_buf, buf);
 	    }
 	  else if (line != geom->FirstLinestring)
 	    {
 		/* opening a further LineString */
-		strcpy (buf, ",[");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, ",[");
 	    }
 	  for (iv = 0; iv < line->Points; iv++)
 	    {
@@ -3701,37 +3973,45 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 		  }
 		if (has_z)
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
-		      sprintf (buf_z, "%.*f", precision, z);
+		      buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		      gaiaOutClean (buf_z);
 		      if (iv == 0)
-			  sprintf (buf, "[%s,%s,%s]", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf ("[%s,%s,%s]", buf_x, buf_y,
+					       buf_z);
 		      else
-			  sprintf (buf, ",[%s,%s,%s]", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf (",[%s,%s,%s]", buf_x, buf_y,
+					       buf_z);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
+		      sqlite3_free (buf_z);
 		  }
 		else
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
 		      if (iv == 0)
-			  sprintf (buf, "[%s,%s]", buf_x, buf_y);
+			  buf = sqlite3_mprintf ("[%s,%s]", buf_x, buf_y);
 		      else
-			  sprintf (buf, ",[%s,%s]", buf_x, buf_y);
+			  buf = sqlite3_mprintf (",[%s,%s]", buf_x, buf_y);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
 		  }
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
 	  /* closing the LineString */
-	  strcpy (buf, "]");
-	  gaiaAppendToOutBuffer (out_buf, buf);
+	  gaiaAppendToOutBuffer (out_buf, "]");
 	  if (is_multi)
 	    {
-		strcpy (buf, "}");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, "}");
 		multi_count++;
 	    }
 	  line = line->Next;
@@ -3743,16 +4023,15 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 	  if (is_multi)
 	    {
 		if (multi_count > 0)
-		    strcpy (buf, ",{\"type\":\"Polygon\",\"coordinates\":[");
+		    buf = ",{\"type\":\"Polygon\",\"coordinates\":[";
 		else
-		    strcpy (buf, "{\"type\":\"Polygon\",\"coordinates\":[");
+		    buf = "{\"type\":\"Polygon\",\"coordinates\":[";
 		gaiaAppendToOutBuffer (out_buf, buf);
 	    }
 	  else if (polyg != geom->FirstPolygon)
 	    {
 		/* opening a further Polygon */
-		strcpy (buf, ",[");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, ",[");
 	    }
 	  ring = polyg->Exterior;
 	  for (iv = 0; iv < ring->Points; iv++)
@@ -3779,33 +4058,42 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 		  }
 		if (has_z)
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
-		      sprintf (buf_z, "%.*f", precision, z);
+		      buf_z = sqlite3_mprintf ("%.*f", precision, z);
 		      gaiaOutClean (buf_z);
 		      if (iv == 0)
-			  sprintf (buf, "[[%s,%s,%s]", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf ("[[%s,%s,%s]", buf_x, buf_y,
+					       buf_z);
 		      else
-			  sprintf (buf, ",[%s,%s,%s]", buf_x, buf_y, buf_z);
+			  buf =
+			      sqlite3_mprintf (",[%s,%s,%s]", buf_x, buf_y,
+					       buf_z);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
+		      sqlite3_free (buf_z);
 		  }
 		else
 		  {
-		      sprintf (buf_x, "%.*f", precision, x);
+		      buf_x = sqlite3_mprintf ("%.*f", precision, x);
 		      gaiaOutClean (buf_x);
-		      sprintf (buf_y, "%.*f", precision, y);
+		      buf_y = sqlite3_mprintf ("%.*f", precision, y);
 		      gaiaOutClean (buf_y);
 		      if (iv == 0)
-			  sprintf (buf, "[[%s,%s]", buf_x, buf_y);
+			  buf = sqlite3_mprintf ("[[%s,%s]", buf_x, buf_y);
 		      else
-			  sprintf (buf, ",[%s,%s]", buf_x, buf_y);
+			  buf = sqlite3_mprintf (",[%s,%s]", buf_x, buf_y);
+		      sqlite3_free (buf_x);
+		      sqlite3_free (buf_y);
 		  }
 		gaiaAppendToOutBuffer (out_buf, buf);
+		sqlite3_free (buf);
 	    }
 	  /* closing the Exterior Ring */
-	  strcpy (buf, "]");
-	  gaiaAppendToOutBuffer (out_buf, buf);
+	  gaiaAppendToOutBuffer (out_buf, "]");
 	  for (ib = 0; ib < polyg->NumInteriors; ib++)
 	    {
 		/* interior rings */
@@ -3834,47 +4122,53 @@ gaiaOutGeoJSON (gaiaOutBufferPtr out_buf, gaiaGeomCollPtr geom, int precision,
 			}
 		      if (has_z)
 			{
-			    sprintf (buf_x, "%.*f", precision, x);
+			    buf_x = sqlite3_mprintf ("%.*f", precision, x);
 			    gaiaOutClean (buf_x);
-			    sprintf (buf_y, "%.*f", precision, y);
+			    buf_y = sqlite3_mprintf ("%.*f", precision, y);
 			    gaiaOutClean (buf_y);
-			    sprintf (buf_z, "%.*f", precision, z);
+			    buf_z = sqlite3_mprintf ("%.*f", precision, z);
 			    gaiaOutClean (buf_z);
 			    if (iv == 0)
-				sprintf (buf, ",[[%s,%s,%s]", buf_x, buf_y,
-					 buf_z);
+				buf =
+				    sqlite3_mprintf (",[[%s,%s,%s]", buf_x,
+						     buf_y, buf_z);
 			    else
-				sprintf (buf, ",[%s,%s,%s]", buf_x, buf_y,
-					 buf_z);
+				buf =
+				    sqlite3_mprintf (",[%s,%s,%s]", buf_x,
+						     buf_y, buf_z);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
+			    sqlite3_free (buf_z);
 			}
 		      else
 			{
-			    sprintf (buf_x, "%.*f", precision, x);
+			    buf_x = sqlite3_mprintf ("%.*f", precision, x);
 			    gaiaOutClean (buf_x);
-			    sprintf (buf_y, "%.*f", precision, y);
+			    buf_y = sqlite3_mprintf ("%.*f", precision, y);
 			    gaiaOutClean (buf_y);
 			    if (iv == 0)
-				sprintf (buf, ",[[%s,%s]", buf_x, buf_y);
+				buf =
+				    sqlite3_mprintf (",[[%s,%s]", buf_x, buf_y);
 			    else
-				sprintf (buf, ",[%s,%s]", buf_x, buf_y);
+				buf =
+				    sqlite3_mprintf (",[%s,%s]", buf_x, buf_y);
+			    sqlite3_free (buf_x);
+			    sqlite3_free (buf_y);
 			}
 		      gaiaAppendToOutBuffer (out_buf, buf);
+		      sqlite3_free (buf);
 		  }
 		/* closing the Interior Ring */
-		strcpy (buf, "]");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, "]");
 	    }
 	  /* closing the Polygon */
-	  strcpy (buf, "]");
-	  gaiaAppendToOutBuffer (out_buf, buf);
+	  gaiaAppendToOutBuffer (out_buf, "]");
 	  if (is_multi)
 	    {
-		strcpy (buf, "}");
-		gaiaAppendToOutBuffer (out_buf, buf);
+		gaiaAppendToOutBuffer (out_buf, "}");
 		multi_count++;
 	    }
 	  polyg = polyg->Next;
       }
-    strcpy (buf, endJson);
-    gaiaAppendToOutBuffer (out_buf, buf);
+    gaiaAppendToOutBuffer (out_buf, endJson);
 }

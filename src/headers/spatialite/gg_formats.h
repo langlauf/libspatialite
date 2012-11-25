@@ -1,7 +1,7 @@
 /*
  gg_formats.h -- Gaia common support for geometries: formats
   
- version 3.0, 2011 July 20
+ version 4.0, 2012 August 6
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008
+Portions created by the Initial Developer are Copyright (C) 2008-2012
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -319,6 +319,68 @@ extern "C"
 					unsigned char **result, int *size);
 
 /**
+ Creates a BLOB-Geometry representing a PointZ
+
+ \param x Point X coordinate.
+ \param y Point Y coordinate.
+ \param z Point Z coordinate.
+ \param srid the SRID to be set for the Point.
+ \param result on completion will containt a pointer to BLOB-Geometry:
+ NULL on failure.
+ \param size on completion this variable will contain the BLOB's size (in bytes)
+
+ \sa gaiaFromSpatiaLiteBlobWkb
+
+ \note the BLOB buffer corresponds to dynamically allocated memory:
+ so you are responsible to free() it [unless SQLite will take care
+ of memory cleanup via buffer binding].
+ */
+    GAIAGEO_DECLARE void gaiaMakePointZ (double x, double y, double z, int srid,
+					 unsigned char **result, int *size);
+
+/**
+ Creates a BLOB-Geometry representing a PointM
+
+ \param x Point X coordinate.
+ \param y Point Y coordinate.
+ \param m Point M coordinate.
+ \param srid the SRID to be set for the Point.
+ \param result on completion will containt a pointer to BLOB-Geometry:
+ NULL on failure.
+ \param size on completion this variable will contain the BLOB's size (in bytes)
+
+ \sa gaiaFromSpatiaLiteBlobWkb
+
+ \note the BLOB buffer corresponds to dynamically allocated memory:
+ so you are responsible to free() it [unless SQLite will take care
+ of memory cleanup via buffer binding].
+ */
+    GAIAGEO_DECLARE void gaiaMakePointM (double x, double y, double m, int srid,
+					 unsigned char **result, int *size);
+
+/**
+ Creates a BLOB-Geometry representing a PointZM
+
+ \param x Point X coordinate.
+ \param y Point Y coordinate.
+ \param z Point Z coordinate.
+ \param m Point M coordinate.
+ \param srid the SRID to be set for the Point.
+ \param result on completion will containt a pointer to BLOB-Geometry:
+ NULL on failure.
+ \param size on completion this variable will contain the BLOB's size (in bytes)
+
+ \sa gaiaFromSpatiaLiteBlobWkb
+
+ \note the BLOB buffer corresponds to dynamically allocated memory:
+ so you are responsible to free() it [unless SQLite will take care
+ of memory cleanup via buffer binding].
+ */
+    GAIAGEO_DECLARE void gaiaMakePointZM (double x, double y, double z,
+					  double m, int srid,
+					  unsigned char **result, int *size);
+
+/**
  Creates a BLOB-Geometry representing a Segment (2-Points Linestring)
 
  \param geom1 pointer to first Geometry object (expected to represent a Point).
@@ -470,7 +532,8 @@ extern "C"
 
  \return the pointer to the newly created Geometry object: NULL on failure.
 
- \sa gaiaToWkb, gaiaToHexWkb, gaiaFromEWKB, gaiaToEWKB
+ \sa gaiaToWkb, gaiaToHexWkb, gaiaParseHexEWKB, gaiaToEWKB, gaiaEwkbGetPoint,
+ gaiaEwkbGetLinestring, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
 
  \note you are responsible to destroy (before or after) any allocated Geometry,
  unless you've passed ownership of the Geometry object to some further object:
@@ -479,6 +542,113 @@ extern "C"
  */
     GAIAGEO_DECLARE gaiaGeomCollPtr gaiaFromEWKB (const unsigned char
 						  *in_buffer);
+
+/**
+ Translates an EWKB notation from hexadecimal into binary
+
+ \param blob_hex pointer to EWKB input buffer (hexadecimal text string)
+ \param blob_size lenght (in bytes) of the input buffer; if succesfull will 
+  contain the lenght of the returned output buffer.
+
+ \return the pointer to the newly created EWKB binary buffer: NULL on failure.
+
+ \sa gaiaToWkb, gaiaToHexWkb, gaiaFromEWKB, gaiaToEWKB
+
+ \note you are responsible to destroy (before or after) any buffer allocated by
+ gaiaParseHexEWKB()
+ */
+    GAIAGEO_DECLARE unsigned char *gaiaParseHexEWKB (const unsigned char
+						     *blob_hex, int *blob_size);
+
+/**
+ Attempts to decode a Point from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Point
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endiam_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetLinestring, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetPoint (gaiaGeomCollPtr geom, unsigned char *blob,
+			  int offset, int blob_size, int endian,
+			  int endian_arch, int dims);
+
+/**
+ Attempts to decode a Point from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Linestring
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endiam_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetLinestring (gaiaGeomCollPtr geom, unsigned char *blob,
+			       int offset, int blob_size, int endian,
+			       int endian_arch, int dims);
+
+/**
+ Attempts to decode a Polygon from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Polygon
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endiam_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetPolygon (gaiaGeomCollPtr geom, unsigned char *blob,
+			    int offset, int blob_size, int endian,
+			    int endian_arch, int dims);
+
+/**
+ Attempts to decode a MultiGeometry from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed MultiGeometry
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endiam_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetLinestring, gaiaEwkbGetPolygon
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetMultiGeometry (gaiaGeomCollPtr geom, unsigned char *blob,
+				  int offset, int blob_size, int endian,
+				  int endian_arch, int dims);
 
 /**
  Creates a Geometry object from FGF notation
