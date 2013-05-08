@@ -286,7 +286,7 @@ extern "C"
 
  \sa gaiaIsValidXmlBlob, gaiaIsSchemaValidatedXmlBlob, 
  gaiaIsCompressedXmlBlob, gaiaIsIsoMetadataXmlBlob, 
- gaiaIsSldSeVectorStyleXmlBlob, gaiaIsSldSeRasterStyleXmlBlob
+ gaiaIsSldSeVectorStyleXmlBlob, gaiaIsSldSeRasterXmlBlob
  */
     GAIAGEO_DECLARE int gaiaIsSvgXmlBlob (const unsigned char *blob, int size);
 
@@ -322,7 +322,7 @@ extern "C"
 
  \sa gaiaIsValidXmlBlob, gaiaIsSvgXmlBlob, 
  gaiaIsCompressedXmlBlob, gaiaIsIsoMetadataXmlBlob, 
- gaiaIsSldSeVectorStyleXmlBlob, gaiaIsSldSeRasterStyleXmlBlob
+ gaiaIsSldSeVectorStyleXmlBlob, gaiaIsSldSeRasterXmlBlob
  */
     GAIAGEO_DECLARE int gaiaIsSchemaValidatedXmlBlob (const unsigned char *blob,
 						      int size);

@@ -49,7 +49,6 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #include "sqlite3.h"
 #include "spatialite.h"
-#include "spatialite/gg_wfs.h"
 
 #ifdef ENABLE_LIBXML2	/* only if LIBXML2 is supported */
 #include <libxml/parser.h>
@@ -95,7 +94,7 @@ int main (int argc, char *argv[])
     }
     
 #ifdef ENABLE_LIBXML2	/* only if LIBXML2 is supported */
-    ret = load_from_wfs (handle, "./test.wfs", NULL, "topp:p02", 0, "test_wfs1", "objectid", 1, &row_count, &err_msg, NULL, NULL);
+    ret = load_from_wfs (handle, "./test.wfs", "topp:p02", 0, "test_wfs1", "objectid", 1, &row_count, &err_msg, NULL, NULL);
     if (!ret) {
         fprintf (stderr, "load_from_wfs() error for test.wfs (1): %s\n", err_msg);
 	free(err_msg);
@@ -108,7 +107,7 @@ int main (int argc, char *argv[])
 	return -4; 
     }
 
-    ret = load_from_wfs (handle, "./test.wfs", NULL, "topp:p02", 0, "test_wfs2", NULL, 0, &row_count, &err_msg, NULL, NULL);
+    ret = load_from_wfs (handle, "./test.wfs", "topp:p02", 0, "test_wfs2", NULL, 0, &row_count, &err_msg, NULL, NULL);
     if (!ret) {
         fprintf (stderr, "load_from_wfs() error for test.wfs (2): %s\n", err_msg);
 	free(err_msg);

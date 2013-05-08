@@ -755,7 +755,6 @@ free_auxdbf (struct auxdbf_list *auxdbf)
 	  free (fld);
 	  fld = n_fld;
       }
-    free (auxdbf);
 }
 
 static void
@@ -4835,7 +4834,7 @@ gaiaOpenDbfWrite (gaiaDbfPtr dbf, const char *path, const char *charFrom,
 	  dbf_size += 32;
 	  fld = fld->Next;
       }
-    free_auxdbf (auxdbf);
+    auxdbf = alloc_auxdbf (dbf->Dbf);
     fwrite ("\r", 1, 1, fl_dbf);	/* this one is a special DBF delimiter that closes file header */
     dbf_size++;
     dbf->Valid = 1;
