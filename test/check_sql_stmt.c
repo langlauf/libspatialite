@@ -56,6 +56,10 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include "sqlite3.h"
 #include "spatialite.h"
 
+#ifdef ENABLE_LIBXML2	/* only if LIBXML2 is supported */
+#include <libxml/parser.h>
+#endif
+
 #ifndef OMIT_GEOS		/* including GEOS */
 #include <geos_c.h>
 #endif
@@ -87,6 +91,7 @@ int do_one_case (const struct test_data *data)
     char **results;
     int rows;
     int columns;
+    void *cache = spatialite_alloc_connection();
 
     fprintf(stderr, "Test case: %s\n", data->test_case_name);
     /* This hack checks if the name ends with _RO */
@@ -102,8 +107,10 @@ int do_one_case (const struct test_data *data)
       db_handle = NULL;
       return -1;
     }
+
+    spatialite_init_ex (db_handle, cache, 0);
     
-    ret = sqlite3_exec (db_handle, "SELECT InitSpatialMetadata()", NULL, NULL, &err_msg);
+    ret = sqlite3_exec (db_handle, "SELECT InitSpatialMetadata(1)", NULL, NULL, &err_msg);
     if (ret != SQLITE_OK) {
 	fprintf (stderr, "InitSpatialMetadata() error: %s\n", err_msg);
 	sqlite3_free(err_msg);
@@ -147,6 +154,8 @@ int do_one_case (const struct test_data *data)
     sqlite3_free_table (results);
 
     sqlite3_close (db_handle);
+        
+    spatialite_cleanup_ex(cache);
     
     return 0;
 }
@@ -155,7 +164,7 @@ int get_clean_line(FILE *f, char ** line)
 {
     size_t len = 0;
     ssize_t num_read = 0;
-    size_t end = 0;
+    ssize_t end = 0;
     char *tmp_line = NULL;
 
 #if !defined(_WIN32) &&!defined(__APPLE__)
@@ -272,6 +281,7 @@ int run_all_testcases()
     int n;
     int i;
     int result = 0;
+    const char *security_level;
     
     n = scandir("sql_stmt_tests", &namelist, test_case_filter, alphasort);
     if (n < 0) {
@@ -297,6 +307,36 @@ int run_all_testcases()
 	free(namelist[i]);
     }
     free(namelist);
+    
+    security_level = getenv ("SPATIALITE_SECURITY");
+    if (security_level == NULL)
+	;
+    else if (strcasecmp (security_level, "relaxed") == 0) {
+	n = scandir("sql_stmt_security_tests", &namelist, test_case_filter, alphasort);
+	if (n < 0) {
+	    perror("scandir");
+	    return -1;
+	}
+
+	for (i = 0; i < n; ++i) {
+	    struct test_data *data;
+	    char *path;
+	    if (asprintf(&path, "sql_stmt_security_tests/%s", namelist[i]->d_name) < 0) {
+	        return -1;
+	    }
+	    data = read_one_case(path);
+	    free(path);
+	
+	    result = do_one_case(data);
+	
+	    cleanup_test_data(data);
+	    if (result != 0) {
+	        return result;
+	    }
+	    free(namelist[i]);
+	}
+	free(namelist);
+    }
 
 #ifndef OMIT_MATHSQL	/* only if MATHSQL is supported */
     n = scandir("sql_stmt_mathsql_tests", &namelist, test_case_filter, alphasort);
@@ -356,10 +396,10 @@ int run_all_testcases()
     if (strcmp(GEOSversion (), "3.3") < 0)
     {
     /* 
-    /* skipping GEOS tests if some obsolete version is found 
-    /*
-    /* rationale: obsolete versions may return substantially
-    /* different results, thus causing many testcases to fail
+      skipping GEOS tests if some obsolete version is found 
+    
+      rationale: obsolete versions may return substantially
+      different results, thus causing many testcases to fail
     */
         fprintf(stderr, "WARNING: skipping GEOS testcases; obsolete version found !!!\n");
         goto skip_geos;
@@ -396,10 +436,10 @@ skip_geos:
     if (strcmp(GEOSversion (), "3.3") < 0)
     {
     /* 
-    /* skipping GEOS tests if some obsolete version is found 
-    /*
-    /* rationale: obsolete versions may return substantially
-    /* different results, thus causing many testcases to fail
+       skipping GEOS tests if some obsolete version is found 
+
+       rationale: obsolete versions may return substantially
+       different results, thus causing many testcases to fail
     */
         fprintf(stderr, "WARNING: skipping GEOS_ADVANCED testcases; obsolete version found !!!\n");
         goto skip_geos_advanced;
@@ -435,10 +475,10 @@ skip_geos_advanced:
     if (strcmp(GEOSversion (), "3.3") < 0)
     {
     /* 
-    /* skipping GEOS tests if some obsolete version is found 
-    /*
-    /* rationale: obsolete versions may return substantially
-    /* different results, thus causing many testcases to fail
+       skipping GEOS tests if some obsolete version is found 
+
+       rationale: obsolete versions may return substantially
+       different results, thus causing many testcases to fail
     */
         fprintf(stderr, "WARNING: skipping GEOS_TRUNK testcases; obsolete version found !!!\n");
         goto skip_geos_trunk;
@@ -497,6 +537,66 @@ skip_geos_trunk:
     free(namelist);
 #endif	/* end LWGEOM conditional */
 
+#ifdef ENABLE_LIBXML2	/* only if LIBXML2 is supported */
+    n = scandir("sql_stmt_libxml2_tests", &namelist, test_case_filter, alphasort);
+    if (n < 0) {
+	perror("scandir");
+	return -1;
+    }
+
+    for (i = 0; i < n; ++i) {
+	struct test_data *data;
+	char *path;
+	if (asprintf(&path, "sql_stmt_libxml2_tests/%s", namelist[i]->d_name) < 0) {
+	    return -1;
+	}
+	data = read_one_case(path);
+	free(path);
+	
+	result = do_one_case(data);
+	
+	cleanup_test_data(data);
+	if (result != 0) {
+	    return result;
+	}
+	free(namelist[i]);
+    }
+    free(namelist);
+
+    security_level = getenv ("SPATIALITE_SECURITY");
+    if (security_level == NULL)
+	;
+    else if (strcasecmp (security_level, "relaxed") == 0) {
+	n = scandir("sql_stmt_xmlsec_tests", &namelist, test_case_filter, alphasort);
+	if (n < 0) {
+	    perror("scandir");
+	    return -1;
+	}
+
+	for (i = 0; i < n; ++i) {
+	    struct test_data *data;
+	    char *path;
+	    if (asprintf(&path, "sql_stmt_xmlsec_tests/%s", namelist[i]->d_name) < 0) {
+	        return -1;
+	    }
+	    data = read_one_case(path);
+	    free(path);
+	
+	    result = do_one_case(data);
+	
+	    cleanup_test_data(data);
+	    if (result != 0) {
+	        return result;
+	    }
+	    free(namelist[i]);
+	}
+	free(namelist);
+    }
+
+    xmlCleanupParser();
+
+#endif	/* end LIBXML2 conditional */
+
     return result;
 }
 
@@ -522,8 +622,6 @@ int main (int argc, char *argv[])
 {
     int result = 0;
 
-    spatialite_init (0);
-
     if (argc == 1)
     {
 	result = run_all_testcases();
@@ -539,8 +637,6 @@ int main (int argc, char *argv[])
     /* forcing -1 seems to resolve this issue                 */
         result = -1;
     }
-
-    spatialite_cleanup();
 
     return result;
 }

@@ -2,7 +2,7 @@
 
  gg_gml.c -- GML parser/lexer 
   
- version 4.0, 2012 August 6
+ version 4.1, 2013 May 8
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2011-2012
+Portions created by the Initial Developer are Copyright (C) 2011-2013
 the Initial Developer. All Rights Reserved.
 
 Alternatively, the contents of this file may be used under the terms of
@@ -48,12 +48,17 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #include <assert.h>
 
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "config-msvc.h"
+#else
 #include "config.h"
+#endif
 
 #include <spatialite/sqlite.h>
 #include <spatialite/debug.h>
 
 #include <spatialite/gaiageo.h>
+#include <spatialite_private.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #include <io.h>
@@ -90,6 +95,81 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #define GML_DYN_ATTRIB	6
 
 #define GML_DYN_BLOCK 1024
+
+
+
+/*
+** CAVEAT: we must redefine any Lemon/Flex own macro
+*/
+#define YYMINORTYPE		GML_MINORTYPE
+#define YY_CHAR			GML_YY_CHAR
+#define	input			gml_input
+#define ParseAlloc		gmlParseAlloc
+#define ParseFree		gmlParseFree
+#define ParseStackPeak		gmlParseStackPeak
+#define Parse			gmlParse
+#define yyStackEntry		gml_yyStackEntry
+#define yyzerominor		gml_yyzerominor
+#define yy_accept		gml_yy_accept
+#define yy_action		gml_yy_action
+#define yy_base			gml_yy_base
+#define yy_buffer_stack		gml_yy_buffer_stack
+#define yy_buffer_stack_max	gml_yy_buffer_stack_max
+#define yy_buffer_stack_top	gml_yy_buffer_stack_top
+#define yy_c_buf_p		gml_yy_c_buf_p
+#define yy_chk			gml_yy_chk
+#define yy_def			gml_yy_def
+#define yy_default		gml_yy_default
+#define yy_destructor		gml_yy_destructor
+#define yy_ec			gml_yy_ec
+#define yy_fatal_error		gml_yy_fatal_error
+#define yy_find_reduce_action	gml_yy_find_reduce_action
+#define yy_find_shift_action	gml_yy_find_shift_action
+#define yy_get_next_buffer	gml_yy_get_next_buffer
+#define yy_get_previous_state	gml_yy_get_previous_state
+#define yy_init			gml_yy_init
+#define yy_init_globals		gml_yy_init_globals
+#define yy_lookahead		gml_yy_lookahead
+#define yy_meta			gml_yy_meta
+#define yy_nxt			gml_yy_nxt
+#define yy_parse_failed		gml_yy_parse_failed
+#define yy_pop_parser_stack	gml_yy_pop_parser_stack
+#define yy_reduce		gml_yy_reduce
+#define yy_reduce_ofst		gml_yy_reduce_ofst
+#define yy_shift		gml_yy_shift
+#define yy_shift_ofst		gml_yy_shift_ofst
+#define yy_start		gml_yy_start
+#define yy_state_type		gml_yy_state_type
+#define yy_syntax_error		gml_yy_syntax_error
+#define yy_trans_info		gml_yy_trans_info
+#define yy_try_NUL_trans	gml_yy_try_NUL_trans
+#define yyParser		gml_yyParser
+#define yyStackEntry		gml_yyStackEntry
+#define yyStackOverflow		gml_yyStackOverflow
+#define yyRuleInfo		gml_yyRuleInfo
+#define yyunput			gml_yyunput
+#define yyzerominor		gml_yyzerominor
+#define yyTraceFILE		gml_yyTraceFILE
+#define yyTracePrompt		gml_yyTracePrompt
+#define yyTokenName		gml_yyTokenName
+#define yyRuleName		gml_yyRuleName
+#define ParseTrace		gml_ParseTrace
+
+#define yylex			gml_yylex
+#define YY_DECL int yylex (yyscan_t yyscanner)
+
+
+/* include LEMON generated header */
+#include "Gml.h"
+
+
+typedef union
+{
+    char *pval;
+    struct symtab *symp;
+} gml_yystype;
+#define YYSTYPE gml_yystype
+
 
 /*
 ** This is a linked-list struct to store all the values for each token.
@@ -160,6 +240,7 @@ struct gml_data
     struct gml_dyn_block *gml_first_dyn_block;
     struct gml_dyn_block *gml_last_dyn_block;
     gmlNodePtr result;
+    YYSTYPE GmlLval;
 };
 
 static struct gml_dyn_block *
@@ -350,34 +431,6 @@ gmlCleanMapDynAlloc (struct gml_data *p_data, int clean_all)
 	  free (p);
 	  p = pn;
       }
-}
-
-static void
-gml_proj_params (sqlite3 * sqlite, int srid, char *proj_params)
-{
-/* retrives the PROJ params from SPATIAL_SYS_REF table, if possible */
-    char sql[256];
-    char **results;
-    int rows;
-    int columns;
-    int i;
-    int ret;
-    char *errMsg = NULL;
-    *proj_params = '\0';
-    sprintf (sql,
-	     "SELECT proj4text FROM spatial_ref_sys WHERE srid = %d", srid);
-    ret = sqlite3_get_table (sqlite, sql, &results, &rows, &columns, &errMsg);
-    if (ret != SQLITE_OK)
-      {
-	  spatialite_e ("unknown SRID: %d\t<%s>\n", srid, errMsg);
-	  sqlite3_free (errMsg);
-	  return;
-      }
-    for (i = 1; i <= rows; i++)
-	strcpy (proj_params, results[(i * columns)]);
-    if (*proj_params == '\0')
-	spatialite_e ("unknown SRID: %d\n", srid);
-    sqlite3_free_table (results);
 }
 
 static gmlDynamicPolygonPtr
@@ -1868,6 +1921,8 @@ gml_parse_multi_point (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiPoint> */
     int srid;
+    int pts;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -1883,29 +1938,42 @@ gml_parse_multi_point (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:pointMember") == 0
-	      || strcmp (n->Tag, "pointMember") == 0)
+	      || strcmp (n->Tag, "pointMember") == 0
+	      || strcmp (n->Tag, "gml:pointMembers") == 0
+	      || strcmp (n->Tag, "pointMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:Point") == 0
-	      || strcmp (n->Tag, "Point") == 0)
-	      ;
-	  else
-	      return 0;
-	  srid = guessGmlSrid (n);
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (!gml_parse_point (p_data, geom, n, srid, &next))
-	      return 0;
-	  n = next;
-	  if (n == NULL)
+	  n2 = n->Next;
+	  pts = 0;
+	  while (n2)
+	    {
+		/* looping on Point(s) */
+		if (strcmp (n2->Tag, "gml:Point") == 0
+		    || strcmp (n2->Tag, "Point") == 0)
+		    ;
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		srid = guessGmlSrid (n2);
+		n2 = n2->Next;
+		if (n2 == NULL)
+		    return 0;
+		if (!gml_parse_point (p_data, geom, n2, srid, &next))
+		    return 0;
+		n2 = next;
+		if (n2 == NULL)
+		    return 0;
+		pts++;
+	    }
+	  if (!pts)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:pointMember") == 0
-	      || strcmp (n->Tag, "pointMember") == 0)
+	      || strcmp (n->Tag, "pointMember") == 0
+	      || strcmp (n->Tag, "gml:pointMembers") == 0
+	      || strcmp (n->Tag, "pointMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -1920,6 +1988,8 @@ gml_parse_multi_linestring (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiLineString> */
     int srid;
+    int lns;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -1935,29 +2005,42 @@ gml_parse_multi_linestring (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:lineStringMember") == 0
-	      || strcmp (n->Tag, "lineStringMember") == 0)
+	      || strcmp (n->Tag, "lineStringMember") == 0
+	      || strcmp (n->Tag, "gml:lineStringMembers") == 0
+	      || strcmp (n->Tag, "lineStringMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:LineString") == 0
-	      || strcmp (n->Tag, "LineString") == 0)
-	      ;
-	  else
-	      return 0;
-	  srid = guessGmlSrid (n);
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (!gml_parse_linestring (p_data, geom, n, srid, &next))
-	      return 0;
-	  n = next;
-	  if (n == NULL)
+	  n2 = n->Next;
+	  lns = 0;
+	  while (n2)
+	    {
+		/* looping on Linestring(s) */
+		if (strcmp (n2->Tag, "gml:LineString") == 0
+		    || strcmp (n2->Tag, "LineString") == 0)
+		    ;
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		srid = guessGmlSrid (n2);
+		n2 = n2->Next;
+		if (n2 == NULL)
+		    return 0;
+		if (!gml_parse_linestring (p_data, geom, n2, srid, &next))
+		    return 0;
+		n2 = next;
+		if (n2 == NULL)
+		    return 0;
+		lns++;
+	    }
+	  if (!lns)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:lineStringMember") == 0
-	      || strcmp (n->Tag, "lineStringMember") == 0)
+	      || strcmp (n->Tag, "lineStringMember") == 0
+	      || strcmp (n->Tag, "gml:lineStringMembers") == 0
+	      || strcmp (n->Tag, "lineStringMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -1972,6 +2055,8 @@ gml_parse_multi_curve (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiCurve> */
     int srid;
+    int lns;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -1987,29 +2072,42 @@ gml_parse_multi_curve (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:curveMember") == 0
-	      || strcmp (n->Tag, "curveMember") == 0)
+	      || strcmp (n->Tag, "curveMember") == 0
+	      || strcmp (n->Tag, "gml:curveMembers") == 0
+	      || strcmp (n->Tag, "curveMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:Curve") == 0
-	      || strcmp (n->Tag, "Curve") == 0)
-	      ;
-	  else
-	      return 0;
-	  srid = guessGmlSrid (n);
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (!gml_parse_curve (p_data, geom, n, srid, &next))
-	      return 0;
-	  n = next;
-	  if (n == NULL)
+	  n2 = n->Next;
+	  lns = 0;
+	  while (n2)
+	    {
+		/* looping on Curve(s) */
+		if (strcmp (n2->Tag, "gml:Curve") == 0
+		    || strcmp (n2->Tag, "Curve") == 0)
+		    ;
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		srid = guessGmlSrid (n2);
+		n2 = n2->Next;
+		if (n2 == NULL)
+		    return 0;
+		if (!gml_parse_curve (p_data, geom, n2, srid, &next))
+		    return 0;
+		n2 = next;
+		if (n2 == NULL)
+		    return 0;
+		lns++;
+	    }
+	  if (!lns)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:curveMember") == 0
-	      || strcmp (n->Tag, "curveMember") == 0)
+	      || strcmp (n->Tag, "curveMember") == 0
+	      || strcmp (n->Tag, "gml:curveMembers") == 0
+	      || strcmp (n->Tag, "curveMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -2024,6 +2122,8 @@ gml_parse_multi_polygon (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiPolygon> */
     int srid;
+    int pgs;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -2039,29 +2139,42 @@ gml_parse_multi_polygon (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:polygonMember") == 0
-	      || strcmp (n->Tag, "polygonMember") == 0)
+	      || strcmp (n->Tag, "polygonMember") == 0
+	      || strcmp (n->Tag, "gml:polygonMembers") == 0
+	      || strcmp (n->Tag, "polygonMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:Polygon") == 0
-	      || strcmp (n->Tag, "Polygon") == 0)
-	      ;
-	  else
-	      return 0;
-	  srid = guessGmlSrid (n);
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (!gml_parse_polygon (p_data, geom, n, srid, &next))
-	      return 0;
-	  n = next;
-	  if (n == NULL)
+	  n2 = n->Next;
+	  pgs = 0;
+	  while (n2)
+	    {
+		/* looping on Polygon(s) */
+		if (strcmp (n2->Tag, "gml:Polygon") == 0
+		    || strcmp (n2->Tag, "Polygon") == 0)
+		    ;
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		srid = guessGmlSrid (n2);
+		n2 = n2->Next;
+		if (n2 == NULL)
+		    return 0;
+		if (!gml_parse_polygon (p_data, geom, n2, srid, &next))
+		    return 0;
+		n2 = next;
+		if (n2 == NULL)
+		    return 0;
+		pgs++;
+	    }
+	  if (!pgs)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:polygonMember") == 0
-	      || strcmp (n->Tag, "polygonMember") == 0)
+	      || strcmp (n->Tag, "polygonMember") == 0
+	      || strcmp (n->Tag, "gml:polygonMembers") == 0
+	      || strcmp (n->Tag, "polygonMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -2076,6 +2189,8 @@ gml_parse_multi_surface (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiSurface> */
     int srid;
+    int pgs;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -2091,29 +2206,42 @@ gml_parse_multi_surface (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:surfaceMember") == 0
-	      || strcmp (n->Tag, "surfaceMember") == 0)
+	      || strcmp (n->Tag, "surfaceMember") == 0
+	      || strcmp (n->Tag, "gml:surfaceMembers") == 0
+	      || strcmp (n->Tag, "surfaceMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:Polygon") == 0
-	      || strcmp (n->Tag, "Polygon") == 0)
-	      ;
-	  else
-	      return 0;
-	  srid = guessGmlSrid (n);
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (!gml_parse_polygon (p_data, geom, n, srid, &next))
-	      return 0;
-	  n = next;
-	  if (n == NULL)
+	  n2 = n->Next;
+	  pgs = 0;
+	  while (n2)
+	    {
+		/* looping on Polygon(s) */
+		if (strcmp (n2->Tag, "gml:Polygon") == 0
+		    || strcmp (n2->Tag, "Polygon") == 0)
+		    ;
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		srid = guessGmlSrid (n2);
+		n2 = n2->Next;
+		if (n2 == NULL)
+		    return 0;
+		if (!gml_parse_polygon (p_data, geom, n2, srid, &next))
+		    return 0;
+		n2 = next;
+		if (n2 == NULL)
+		    return 0;
+		pgs++;
+	    }
+	  if (!pgs)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:surfaceMember") == 0
-	      || strcmp (n->Tag, "surfaceMember") == 0)
+	      || strcmp (n->Tag, "surfaceMember") == 0
+	      || strcmp (n->Tag, "gml:surfaceMembers") == 0
+	      || strcmp (n->Tag, "surfaceMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -2128,6 +2256,8 @@ gml_parse_multi_geometry (struct gml_data *p_data, gaiaGeomCollPtr geom,
 {
 /* parsing a <gml:MultiGeometry> */
     int srid;
+    int elems;
+    gmlNodePtr n2;
     gmlNodePtr next;
     gmlNodePtr n = node;
     while (n)
@@ -2143,63 +2273,74 @@ gml_parse_multi_geometry (struct gml_data *p_data, gaiaGeomCollPtr geom,
 		    return 0;
 	    }
 	  if (strcmp (n->Tag, "gml:geometryMember") == 0
-	      || strcmp (n->Tag, "geometryMember") == 0)
+	      || strcmp (n->Tag, "geometryMember") == 0
+	      || strcmp (n->Tag, "gml:geometryMembers") == 0
+	      || strcmp (n->Tag, "geometryMembers") == 0)
 	      ;
 	  else
 	      return 0;
-	  n = n->Next;
-	  if (n == NULL)
-	      return 0;
-	  if (strcmp (n->Tag, "gml:Point") == 0
-	      || strcmp (n->Tag, "Point") == 0)
+	  n2 = n->Next;
+	  elems = 0;
+	  while (n2)
 	    {
-		srid = guessGmlSrid (n);
-		n = n->Next;
-		if (n == NULL)
-		    return 0;
-		if (!gml_parse_point (p_data, geom, n, srid, &next))
-		    return 0;
-		n = next;
+		/* looping on elements */
+		if (strcmp (n2->Tag, "gml:Point") == 0
+		    || strcmp (n2->Tag, "Point") == 0)
+		  {
+		      srid = guessGmlSrid (n2);
+		      n2 = n2->Next;
+		      if (n2 == NULL)
+			  return 0;
+		      if (!gml_parse_point (p_data, geom, n2, srid, &next))
+			  return 0;
+		      n2 = next;
+		  }
+		else if (strcmp (n2->Tag, "gml:LineString") == 0
+			 || strcmp (n2->Tag, "LineString") == 0)
+		  {
+		      srid = guessGmlSrid (n2);
+		      n2 = n2->Next;
+		      if (n2 == NULL)
+			  return 0;
+		      if (!gml_parse_linestring (p_data, geom, n2, srid, &next))
+			  return 0;
+		      n2 = next;
+		  }
+		else if (strcmp (n2->Tag, "gml:Curve") == 0
+			 || strcmp (n2->Tag, "Curve") == 0)
+		  {
+		      srid = guessGmlSrid (n2);
+		      n2 = n2->Next;
+		      if (n2 == NULL)
+			  return 0;
+		      if (!gml_parse_curve (p_data, geom, n2, srid, &next))
+			  return 0;
+		      n2 = next;
+		  }
+		else if (strcmp (n2->Tag, "gml:Polygon") == 0
+			 || strcmp (n2->Tag, "Polygon") == 0)
+		  {
+		      srid = guessGmlSrid (n2);
+		      n2 = n2->Next;
+		      if (n2 == NULL)
+			  return 0;
+		      if (!gml_parse_polygon (p_data, geom, n2, srid, &next))
+			  return 0;
+		      n2 = next;
+		  }
+		else
+		  {
+		      n = n2;
+		      break;
+		  }
+		elems++;
 	    }
-	  else if (strcmp (n->Tag, "gml:LineString") == 0
-		   || strcmp (n->Tag, "LineString") == 0)
-	    {
-		srid = guessGmlSrid (n);
-		n = n->Next;
-		if (n == NULL)
-		    return 0;
-		if (!gml_parse_linestring (p_data, geom, n, srid, &next))
-		    return 0;
-		n = next;
-	    }
-	  else if (strcmp (n->Tag, "gml:Curve") == 0
-		   || strcmp (n->Tag, "Curve") == 0)
-	    {
-		srid = guessGmlSrid (n);
-		n = n->Next;
-		if (n == NULL)
-		    return 0;
-		if (!gml_parse_curve (p_data, geom, n, srid, &next))
-		    return 0;
-		n = next;
-	    }
-	  else if (strcmp (n->Tag, "gml:Polygon") == 0
-		   || strcmp (n->Tag, "Polygon") == 0)
-	    {
-		srid = guessGmlSrid (n);
-		n = n->Next;
-		if (n == NULL)
-		    return 0;
-		if (!gml_parse_polygon (p_data, geom, n, srid, &next))
-		    return 0;
-		n = next;
-	    }
-	  else
-	      return 0;
-	  if (n == NULL)
+	  if (!elems)
 	      return 0;
 	  if (strcmp (n->Tag, "gml:geometryMember") == 0
-	      || strcmp (n->Tag, "geometryMember") == 0)
+	      || strcmp (n->Tag, "geometryMember") == 0
+	      || strcmp (n->Tag, "gml:geometryMembers") == 0
+	      || strcmp (n->Tag, "geometryMembers") == 0)
 	      ;
 	  else
 	      return 0;
@@ -2230,8 +2371,8 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
     gaiaGeomCollPtr g;
     gaiaGeomCollPtr g2;
     gaiaGeomCollPtr geom;
-    char proj_from[2048];
-    char proj_to[2048];
+    char *proj_from;
+    char *proj_to;
 
     g = chain;
     while (g)
@@ -2390,10 +2531,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2403,6 +2543,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pt = g2->FirstPoint;
@@ -2445,10 +2589,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2458,6 +2601,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pt = g2->FirstPoint;
@@ -2505,10 +2652,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2518,6 +2664,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      ln = g2->FirstLinestring;
@@ -2562,10 +2712,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2575,6 +2724,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      ln = g2->FirstLinestring;
@@ -2623,10 +2776,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2636,6 +2788,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pg = g2->FirstPolygon;
@@ -2691,10 +2847,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2704,6 +2859,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pg = g2->FirstPolygon;
@@ -2760,10 +2919,9 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
-			    if (*proj_to == '\0' || *proj_from == '\0')
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
+			    if (proj_to == NULL || proj_from == NULL)
 				;
 			    else
 			      {
@@ -2773,6 +2931,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pt = g2->FirstPoint;
@@ -2839,9 +3001,8 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 			{
 			    /* we'll try to apply a reprojection */
 #ifndef OMIT_PROJ		/* but only if PROJ.4 is actually available */
-			    gml_proj_params (sqlite_handle, g->Srid, proj_from);
-			    gml_proj_params (sqlite_handle, geom->Srid,
-					     proj_to);
+			    getProjParams (sqlite_handle, g->Srid, &proj_from);
+			    getProjParams (sqlite_handle, geom->Srid, &proj_to);
 			    if (*proj_to == '\0' || *proj_from == '\0')
 				;
 			    else
@@ -2852,6 +3013,10 @@ gml_validate_geometry (struct gml_data *p_data, gaiaGeomCollPtr chain,
 				  else
 				      delete_g2 = 1;
 			      }
+			    if (proj_from)
+				free (proj_from);
+			    if (proj_to)
+				free (proj_to);
 #endif
 			}
 		      pt = g2->FirstPoint;
@@ -3008,85 +3173,6 @@ gml_build_geometry (struct gml_data *p_data, gmlNodePtr tree,
 }
 
 
-
-/*
-** CAVEAT: we must redefine any Lemon/Flex own macro
-*/
-#define YYMINORTYPE		GML_MINORTYPE
-#define YY_CHAR			GML_YY_CHAR
-#define	input			gml_input
-#define ParseAlloc		gmlParseAlloc
-#define ParseFree		gmlParseFree
-#define ParseStackPeak		gmlParseStackPeak
-#define Parse			gmlParse
-#define yyStackEntry		gml_yyStackEntry
-#define yyzerominor		gml_yyzerominor
-#define yy_accept		gml_yy_accept
-#define yy_action		gml_yy_action
-#define yy_base			gml_yy_base
-#define yy_buffer_stack		gml_yy_buffer_stack
-#define yy_buffer_stack_max	gml_yy_buffer_stack_max
-#define yy_buffer_stack_top	gml_yy_buffer_stack_top
-#define yy_c_buf_p		gml_yy_c_buf_p
-#define yy_chk			gml_yy_chk
-#define yy_def			gml_yy_def
-#define yy_default		gml_yy_default
-#define yy_destructor		gml_yy_destructor
-#define yy_ec			gml_yy_ec
-#define yy_fatal_error		gml_yy_fatal_error
-#define yy_find_reduce_action	gml_yy_find_reduce_action
-#define yy_find_shift_action	gml_yy_find_shift_action
-#define yy_get_next_buffer	gml_yy_get_next_buffer
-#define yy_get_previous_state	gml_yy_get_previous_state
-#define yy_init			gml_yy_init
-#define yy_init_globals		gml_yy_init_globals
-#define yy_lookahead		gml_yy_lookahead
-#define yy_meta			gml_yy_meta
-#define yy_nxt			gml_yy_nxt
-#define yy_parse_failed		gml_yy_parse_failed
-#define yy_pop_parser_stack	gml_yy_pop_parser_stack
-#define yy_reduce		gml_yy_reduce
-#define yy_reduce_ofst		gml_yy_reduce_ofst
-#define yy_shift		gml_yy_shift
-#define yy_shift_ofst		gml_yy_shift_ofst
-#define yy_start		gml_yy_start
-#define yy_state_type		gml_yy_state_type
-#define yy_syntax_error		gml_yy_syntax_error
-#define yy_trans_info		gml_yy_trans_info
-#define yy_try_NUL_trans	gml_yy_try_NUL_trans
-#define yyParser		gml_yyParser
-#define yyStackEntry		gml_yyStackEntry
-#define yyStackOverflow		gml_yyStackOverflow
-#define yyRuleInfo		gml_yyRuleInfo
-#define yyunput			gml_yyunput
-#define yyzerominor		gml_yyzerominor
-#define yyTraceFILE		gml_yyTraceFILE
-#define yyTracePrompt		gml_yyTracePrompt
-#define yyTokenName		gml_yyTokenName
-#define yyRuleName		gml_yyRuleName
-#define ParseTrace		gml_ParseTrace
-
-#define yylex			gml_yylex
-#define YY_DECL int yylex (yyscan_t yyscanner)
-
-
-/* include LEMON generated header */
-#include "Gml.h"
-
-
-typedef union
-{
-    char *pval;
-    struct symtab *symp;
-} gml_yystype;
-#define YYSTYPE gml_yystype
-
-
-/* extern YYSTYPE yylval; */
-YYSTYPE GmlLval;
-
-
-
 /* including LEMON generated code */
 #include "Gml.c"
 
@@ -3130,7 +3216,7 @@ gaiaParseGml (const unsigned char *dirty_buffer, sqlite3 * sqlite_handle)
 /* initializing the scanner state */
     Gmllex_init_extra (&str_data, &scanner);
 
-    GmlLval.pval = NULL;
+    str_data.GmlLval.pval = NULL;
     tokens->value = NULL;
     tokens->Next = NULL;
     Gml_scan_string ((char *) dirty_buffer, scanner);
@@ -3148,11 +3234,7 @@ gaiaParseGml (const unsigned char *dirty_buffer, sqlite3 * sqlite_handle)
 	    }
 	  tokens->Next = malloc (sizeof (gmlFlexToken));
 	  tokens->Next->Next = NULL;
-	  /*
-	     /GmlLval is a global variable from FLEX.
-	     /GmlLval is defined in gmlLexglobal.h
-	   */
-	  gml_xferString (&(tokens->Next->value), GmlLval.pval);
+	  gml_xferString (&(tokens->Next->value), str_data.GmlLval.pval);
 	  /* Pass the token to the wkt parser created from lemon */
 	  Parse (pParser, yv, &(tokens->Next->value), &str_data);
 	  tokens = tokens->Next;
@@ -3165,7 +3247,7 @@ gaiaParseGml (const unsigned char *dirty_buffer, sqlite3 * sqlite_handle)
     /* Assigning the token as the end to avoid seg faults while cleaning */
     tokens->Next = NULL;
     gml_cleanup (head);
-    gml_freeString (&(GmlLval.pval));
+    gml_freeString (&(str_data.GmlLval.pval));
 
     if (str_data.gml_parse_error)
       {

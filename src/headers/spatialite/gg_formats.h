@@ -1,7 +1,7 @@
 /*
  gg_formats.h -- Gaia common support for geometries: formats
   
- version 4.0, 2012 August 6
+ version 4.1, 2013 May 8
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2012
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -105,6 +105,25 @@ extern "C"
  */
     GAIAGEO_DECLARE int gaiaImport32 (const unsigned char *p, int little_endian,
 				      int little_endian_arch);
+
+/**
+ Import an UINT-32 value in endian-aware fashion
+ 
+ \param p endian-dependent representation (input buffer).
+ \param little_endian 0 if the input buffer is big-endian: any other value
+ for little-endian.
+ \param little_endian_arch the value returned by gaiaEndianArch()
+
+ \return the internal UINT value 
+
+ \sa gaiaEndianArch, gaiaExportU32
+
+ \note you are expected to pass an input buffer corresponding to an
+ allocation size of (at least) 4 bytes.
+ */
+    GAIAGEO_DECLARE unsigned int gaiaImportU32 (const unsigned char *p,
+						int little_endian,
+						int little_endian_arch);
 
 /**
  Import a FLOAT-32 value in endian-aware fashion
@@ -198,6 +217,24 @@ extern "C"
     GAIAGEO_DECLARE void gaiaExport32 (unsigned char *p, int value,
 				       int little_endian,
 				       int little_endian_arch);
+
+/**
+ Export an UINT-32 value in endian-aware fashion
+ 
+ \param p endian-dependent representation (output buffer).
+ \param value the internal value to be exported.
+ \param little_endian 0 if the output buffer has to be big-endian: any other value
+ for little-endian.
+ \param little_endian_arch the value returned by gaiaEndianArch()
+
+ \sa gaiaEndianArch, gaiaImportU32
+
+ \note you are expected to pass an output buffer corresponding to an
+ allocation size of (at least) 4 bytes.
+ */
+    GAIAGEO_DECLARE void gaiaExportU32 (unsigned char *p, unsigned int value,
+					int little_endian,
+					int little_endian_arch);
 
 /**
  Export a FLOAT-32 value in endian-aware fashion
@@ -532,7 +569,8 @@ extern "C"
 
  \return the pointer to the newly created Geometry object: NULL on failure.
 
- \sa gaiaToWkb, gaiaToHexWkb, gaiaFromEWKB, gaiaToEWKB
+ \sa gaiaToWkb, gaiaToHexWkb, gaiaParseHexEWKB, gaiaToEWKB, gaiaEwkbGetPoint,
+ gaiaEwkbGetLinestring, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
 
  \note you are responsible to destroy (before or after) any allocated Geometry,
  unless you've passed ownership of the Geometry object to some further object:
@@ -541,6 +579,113 @@ extern "C"
  */
     GAIAGEO_DECLARE gaiaGeomCollPtr gaiaFromEWKB (const unsigned char
 						  *in_buffer);
+
+/**
+ Translates an EWKB notation from hexadecimal into binary
+
+ \param blob_hex pointer to EWKB input buffer (hexadecimal text string)
+ \param blob_size lenght (in bytes) of the input buffer; if succesfull will 
+  contain the lenght of the returned output buffer.
+
+ \return the pointer to the newly created EWKB binary buffer: NULL on failure.
+
+ \sa gaiaToWkb, gaiaToHexWkb, gaiaFromEWKB, gaiaToEWKB
+
+ \note you are responsible to destroy (before or after) any buffer allocated by
+ gaiaParseHexEWKB()
+ */
+    GAIAGEO_DECLARE unsigned char *gaiaParseHexEWKB (const unsigned char
+						     *blob_hex, int *blob_size);
+
+/**
+ Attempts to decode a Point from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Point
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endian_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetLinestring, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetPoint (gaiaGeomCollPtr geom, unsigned char *blob,
+			  int offset, int blob_size, int endian,
+			  int endian_arch, int dims);
+
+/**
+ Attempts to decode a Point from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Linestring
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endian_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetLinestring (gaiaGeomCollPtr geom, unsigned char *blob,
+			       int offset, int blob_size, int endian,
+			       int endian_arch, int dims);
+
+/**
+ Attempts to decode a Polygon from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed Polygon
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endian_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetPolygon, gaiaEwkbGetMultiGeometry
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetPolygon (gaiaGeomCollPtr geom, unsigned char *blob,
+			    int offset, int blob_size, int endian,
+			    int endian_arch, int dims);
+
+/**
+ Attempts to decode a MultiGeometry from within an EWKB binary buffer
+
+ \param geom pointer to an existing Geometry object; if succesfull the parsed MultiGeometry
+  will be inserted into this Geometry
+ \param blob pointer to EWKB input buffer
+ \param offset the offset (in bytes) on the input buffer where the Point definition is expected to start.
+ \param blob_size lenght (in bytes) of the input buffer.
+ \param endian (boolean) states if the EWKB input buffer is little- or big-endian encode.
+ \param endian_arch (boolean) states if the target CPU has a little- or big-endian architecture.
+ \param dims dimensions: one of GAIA_XY, GAIA_XY_Z, GAIA_XY_M or GAIA_XY_Z_M
+
+ \return -1 on failure; otherwise the offset where the next object starts.
+
+ \sa gaiaEwkbGetPoint, gaiaEwkbGetLinestring, gaiaEwkbGetPolygon
+
+ \note these functions are mainly intended for internal usage.
+ */
+    GAIAGEO_DECLARE int
+	gaiaEwkbGetMultiGeometry (gaiaGeomCollPtr geom, unsigned char *blob,
+				  int offset, int blob_size, int endian,
+				  int endian_arch, int dims);
 
 /**
  Creates a Geometry object from FGF notation

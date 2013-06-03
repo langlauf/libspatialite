@@ -2,7 +2,7 @@
 
  gg_extras.c -- Gaia extra functions support
     
- version 4.0, 2012 August 19
+ version 4.1, 2013 May 8
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2012
+Portions created by the Initial Developer are Copyright (C) 2012-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -43,8 +43,6 @@ the terms of any one of the MPL, the GPL or the LGPL.
  
 */
 
-#include "config.h"
-
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -52,10 +50,22 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 #include <math.h>
 
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "config-msvc.h"
+#else
 #include "config.h"
+#endif
 
 #include <spatialite/sqlite.h>
 #include <spatialite/gaiageo.h>
+
+#if defined(_WIN32) && !defined(__MINGW32__)
+static double
+rint (double x)
+{
+    return floor (x + 0.5);
+}
+#endif
 
 static void
 auxGridSnapPoint (int dimension_model, gaiaPointPtr pt, gaiaGeomCollPtr result,
@@ -714,7 +724,7 @@ gaiaSnapToGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
     return result;
 }
 
-#ifndef OMIT_GEOS		/* including GEOS */
+#ifdef GEOS_ADVANCED		/* GEOS advanced features */
 
 static void
 get_grid_bbox (gaiaGeomCollPtr geom, double *min_x, double *min_y,
@@ -802,6 +812,7 @@ gaiaSquareGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
 		gaiaSetPoint (rng->Coords, 3, x4, y4);
 		gaiaSetPoint (rng->Coords, 4, x1, y1);
 
+		gaiaMbrGeometry (item);
 		if (gaiaGeomCollIntersects (geom, item) == 1)
 		  {
 		      /* ok, inserting a valid cell */
@@ -924,6 +935,7 @@ gaiaTriangularGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
 		gaiaSetPoint (rng->Coords, 2, x3, y3);
 		gaiaSetPoint (rng->Coords, 3, x1, y1);
 
+		gaiaMbrGeometry (item);
 		if (gaiaGeomCollIntersects (geom, item) == 1)
 		  {
 		      /* ok, inserting a valid cell [pointing upside] */
@@ -963,6 +975,7 @@ gaiaTriangularGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
 		gaiaSetPoint (rng->Coords, 2, x4, y4);
 		gaiaSetPoint (rng->Coords, 3, x3, y3);
 
+		gaiaMbrGeometry (item);
 		if (gaiaGeomCollIntersects (geom, item) == 1)
 		  {
 		      /* ok, inserting a valid cell [pointing downside] */
@@ -1099,6 +1112,7 @@ gaiaHexagonalGrid (gaiaGeomCollPtr geom, double origin_x, double origin_y,
 		gaiaSetPoint (rng->Coords, 5, x6, y6);
 		gaiaSetPoint (rng->Coords, 6, x1, y1);
 
+		gaiaMbrGeometry (item);
 		if (gaiaGeomCollIntersects (geom, item) == 1)
 		  {
 		      /* ok, inserting a valid cell */

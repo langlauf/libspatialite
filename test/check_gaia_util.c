@@ -59,6 +59,9 @@ int main (int argc, char *argv[])
     int result;
     char *test_str1;
     char *quoted_str;
+
+    if (argc > 1 || argv[0] == NULL)
+	argc = 1;		/* silencing stupid compiler warnings */
     
     result = gaiaIsReservedSqliteName ("AUTOINCREMENT");
     if (!result) {
@@ -354,7 +357,7 @@ int main (int argc, char *argv[])
     free(test_str1);
     free(quoted_str);
 
-    asprintf(&test_str1, "");
+    asprintf(&test_str1, "%s", "");
     quoted_str = gaiaDoubleQuotedSql(test_str1);
     if (strcmp(quoted_str, "") != 0) {
 	fprintf(stderr, "gaiaDoubleQuotedSql failure: %s\n", quoted_str);

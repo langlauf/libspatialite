@@ -47,21 +47,29 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #include "sqlite3.h"
 #include "spatialite.h"
+#include "spatialite/gaiaaux.h"
 
 int main (int argc, char *argv[])
 {
     int ret;
     sqlite3 *handle;
     char *err_msg = NULL;
+    sqlite3_int64 log_pk;
+    void *cache = spatialite_alloc_connection();
 
-    spatialite_init (0);
+    if (argc > 1 || argv[0] == NULL)
+	argc = 1;		/* silencing stupid compiler warnings */
+
     ret = sqlite3_open_v2 (":memory:", &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
     if (ret != SQLITE_OK) {
 	fprintf(stderr, "cannot open in-memory db: %s\n", sqlite3_errmsg (handle));
 	sqlite3_close(handle);
 	return -1;
     }
-    ret = sqlite3_exec (handle, "SELECT InitSpatialMetadata()", NULL, NULL, &err_msg);
+
+    spatialite_init_ex (handle, cache, 0);
+
+    ret = sqlite3_exec (handle, "SELECT InitSpatialMetadata(1)", NULL, NULL, &err_msg);
     if (ret != SQLITE_OK) {
 	fprintf (stderr, "InitSpatialMetadata() error: %s\n", err_msg);
 	sqlite3_free(err_msg);
@@ -125,13 +133,18 @@ int main (int argc, char *argv[])
 	return -10;
     }
 
+    gaiaInsertIntoSqlLog (handle, "test", "sql_statement_ok", &log_pk);
+    gaiaUpdateSqlLog (handle, log_pk, 1, NULL);
+    gaiaInsertIntoSqlLog (handle, "test", "sql_statement_no", &log_pk);
+    gaiaUpdateSqlLog (handle, log_pk, 0, "some error message");
+
     ret = sqlite3_close (handle);
     if (ret != SQLITE_OK) {
         fprintf (stderr, "sqlite3_close() error: %s\n", sqlite3_errmsg (handle));
 	return -11;
     }
     
-    spatialite_cleanup();
+    spatialite_cleanup_ex(cache);
     
     return 0;
 }

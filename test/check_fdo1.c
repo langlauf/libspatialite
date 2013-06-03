@@ -42,6 +42,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
  
 */
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -67,14 +68,26 @@ int main (int argc, char *argv[])
     char **results;
     int rows;
     int columns;
+    void *cache = spatialite_alloc_connection();
 
-    spatialite_init (0);
-    ret = sqlite3_open_v2 ("sql_stmt_tests/testFDO.sqlite", &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+    if (argc > 1 || argv[0] == NULL)
+	argc = 1;		/* silencing stupid compiler warnings */
+
+    ret = system("cp sql_stmt_tests/testFDO.sqlite testFDO.sqlite");
+    if (ret != 0)
+    {
+        fprintf(stderr, "cannot copy testFDO.sqlite database\n");
+        return -1001;
+    }
+
+    ret = sqlite3_open_v2 ("testFDO.sqlite", &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
     if (ret != SQLITE_OK) {
 	fprintf(stderr, "cannot open testFDO.sqlite db: %s\n", sqlite3_errmsg (handle));
 	sqlite3_close(handle);
 	return -1000;
     }
+
+    spatialite_init_ex (handle, cache, 0);
 
 /* FDO start-up */
     sql = "SELECT AutoFDOStart()";
@@ -101,18 +114,9 @@ int main (int argc, char *argv[])
       fprintf (stderr, "Unexpected error: NULL result\n");
       return -4;
     } 
-    if (strcmp(GEOSversion (), "3.3") > 0) {
-    /* 3.4.0 trunk swaps relative ordering !!!! */
-        if (strcmp(results[1], "MULTIPOINT Z(664642.363686 5169415.339218 294.37, 664350.17954 5171957.915655 314.52, 664964.447225 5170571.245732 318.25)") != 0) {        
-      	    fprintf (stderr, "Unexpected error: invalid result\n");
-        return -5;
-      }
-    }
-    else {
-        if (strcmp(results[1], "MULTIPOINT Z(664350.17954 5171957.915655 314.52, 664642.363686 5169415.339218 294.37, 664964.447225 5170571.245732 318.25)") != 0) {        
+    if (strcmp(results[1], "MULTIPOINT Z(664350.17954 5171957.915655 314.52, 664642.363686 5169415.339218 294.37, 664964.447225 5170571.245732 318.25)") != 0) {        
           fprintf (stderr, "Unexpected error: invalid result |%s|\n", results[1]);
         return -5;
-      }
     }
     sqlite3_free_table (results);
 
@@ -132,18 +136,9 @@ int main (int argc, char *argv[])
       fprintf (stderr, "Unexpected error: NULL result\n");
       return -8;
     } 
-    if (strcmp(GEOSversion (), "3.3") > 0) {
-    /* 3.4.0 trunk swaps relative ordering !!!! */
-        if (strcmp(results[1], "MULTIPOINT Z(665224.506512 5169827.907054 296.16, 665216.306643 5169825.707161 296.06)") != 0) {        
-      	    fprintf (stderr, "Unexpected error: invalid result\n");
+    if (strcmp(results[1], "MULTIPOINT Z(665216.306643 5169825.707161 296.06, 665224.506512 5169827.907054 296.16)") != 0) {        
+          fprintf (stderr, "Unexpected error: invalid result |%s|\n", results[1]);
         return -9;
-      }
-    }
-    else {
-        if (strcmp(results[1], "MULTIPOINT Z(665216.306643 5169825.707161 296.06, 665224.506512 5169827.907054 296.16)") != 0) {        
-          fprintf (stderr, "Unexpected error: invalid result\n");
-        return -9;
-      }
     }
     sqlite3_free_table (results);
 
@@ -160,21 +155,12 @@ int main (int argc, char *argv[])
       return -11;
     }
     if (results[1] == NULL) {
-      fprintf (stderr, "Unexpected error: NULL result\n");
+      fprintf (stderr, "Unexpected error: NULL result |%s|\n", results[1]);
       return -12;
     }
-    if (strcmp(GEOSversion (), "3.3") > 0) {
-    /* 3.4.0 trunk swaps relative ordering !!!! */
-        if (strcmp(results[1], "MULTIPOINT Z(667710.008189 5169402.894615 589.849976, 667687.978175 5169352.045712 583.140015)") != 0) {        
-      	    fprintf (stderr, "Unexpected error: invalid result\n");
-        return -13;
-      }
-    }
-    else {
-        if (strcmp(results[1], "MULTIPOINT Z(667687.978175 5169352.045712 583.140015, 667710.008189 5169402.894615 589.849976)") != 0) {        
-          fprintf (stderr, "Unexpected error: invalid result\n");
+    if (strcmp(results[1], "MULTIPOINT Z(667687.978175 5169352.045712 583.140015, 667710.008189 5169402.894615 589.849976)") != 0) {        
+          fprintf (stderr, "Unexpected error: invalid result b|%s|\n", results[1]);
           return -13;
-      }
     }
     sqlite3_free_table (results);
 
@@ -330,9 +316,9 @@ int main (int argc, char *argv[])
       }
       if (strcmp(results[i], "0") == 0) {
         const char *geos_msg = gaiaGetGeosErrorMsg();
-        if (strlen(geos_msg) == 0)
+        if (geos_msg == NULL)
           geos_msg = gaiaGetGeosWarningMsg();
-        if (strlen(geos_msg) == 0) {
+        if (geos_msg == NULL) {
           fprintf (stderr, "Unexpected error: invalid result\n");
           return -41;
         }
@@ -360,9 +346,9 @@ int main (int argc, char *argv[])
       }
       if (strcmp(results[i], "0") == 0) {
         const char *geos_msg = gaiaGetGeosErrorMsg();
-        if (strlen(geos_msg) == 0)
+        if (geos_msg == NULL)
           geos_msg = gaiaGetGeosWarningMsg();
-        if (strlen(geos_msg) == 0) {
+        if (geos_msg == NULL) {
           fprintf (stderr, "Unexpected error: invalid result\n");
           return -45;
         }
@@ -390,9 +376,9 @@ int main (int argc, char *argv[])
       }
       if (strcmp(results[i], "0") == 0) {
         const char *geos_msg = gaiaGetGeosErrorMsg();
-        if (strlen(geos_msg) == 0)
+        if (geos_msg == NULL)
           geos_msg = gaiaGetGeosWarningMsg();
-        if (strlen(geos_msg) == 0) {
+        if (geos_msg == NULL) {
           fprintf (stderr, "Unexpected error: invalid result\n");
           return -49;
         }
@@ -445,7 +431,13 @@ int main (int argc, char *argv[])
 	return -56;
     }
     
-    spatialite_cleanup();
+    spatialite_cleanup_ex (cache);
+    ret = unlink("testFDO.sqlite");
+    if (ret != 0)
+    {
+        fprintf(stderr, "cannot remove testFDO database\n");
+        return -57;
+    }
 #endif	/* end GEOS conditional */
     
     return 0;

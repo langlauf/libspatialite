@@ -42,6 +42,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
  
 */
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -66,14 +67,25 @@ int main (int argc, char *argv[])
     char **results;
     int rows;
     int columns;
+    void *cache = spatialite_alloc_connection();
 
-    spatialite_init (0);
-    ret = sqlite3_open_v2 ("sql_stmt_tests/testFGF.sqlite", &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+    if (argc > 1 || argv[0] == NULL)
+	argc = 1;		/* silencing stupid compiler warnings */
+
+    ret = system("cp sql_stmt_tests/testFGF.sqlite testFGF.sqlite");
+    if (ret != 0)
+    {
+        fprintf(stderr, "cannot copy testFGF.sqlite database\n");
+        return -1001;
+    }
+    ret = sqlite3_open_v2 ("testFGF.sqlite", &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
     if (ret != SQLITE_OK) {
-	fprintf(stderr, "cannot open testFDO.sqlite db: %s\n", sqlite3_errmsg (handle));
+	fprintf(stderr, "cannot open testFGF.sqlite db: %s\n", sqlite3_errmsg (handle));
 	sqlite3_close(handle);
 	return -1000;
     }
+
+    spatialite_init_ex (handle, cache, 0);
 
 /* FDO start-up */
     sql = "SELECT AutoFDOStart()";
@@ -100,18 +112,9 @@ int main (int argc, char *argv[])
       fprintf (stderr, "Unexpected error: NULL result\n");
       return -4;
     }
-    if (strcmp(GEOSversion (), "3.3") > 0) {
-    /* 3.4.0 trunk swaps relative ordering !!!! */
-        if (strcmp(results[1], "MULTIPOINT(430666.6 5448125.4, 430417.1 5448290.9)") != 0) {        
+    if (strcmp(results[1], "MULTIPOINT(430417.1 5448290.9, 430666.6 5448125.4)") != 0) {        
       	    fprintf (stderr, "Unexpected error: invalid result |%s|\n", results[1]);
         return -5;
-      }
-    }
-    else {
-        if (strcmp(results[1], "MULTIPOINT(430417.1 5448290.9, 430666.6 5448125.4)") != 0) {        
-      	    fprintf (stderr, "Unexpected error: invalid result |%s|\n", results[1]);
-        return -5;
-      }
     }
     sqlite3_free_table (results);
 
@@ -174,7 +177,13 @@ int main (int argc, char *argv[])
 	return -15;
     }
     
-    spatialite_cleanup();
+    spatialite_cleanup_ex (cache);
+    ret = unlink("testFGF.sqlite");
+    if (ret != 0)
+    {
+        fprintf(stderr, "cannot remove testFGF database\n");
+        return -16;
+    }
 #endif	/* end GEOS conditional */
     
     return 0;

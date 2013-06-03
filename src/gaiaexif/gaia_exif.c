@@ -2,7 +2,7 @@
 
  gaia_exif.c -- Gaia EXIF support
   
- version 4.0, 2012 August 6
+ version 4.1, 2013 May 8
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2012
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -51,7 +51,11 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 #include <string.h>
 
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "config-msvc.h"
+#else
 #include "config.h"
+#endif
 
 #include <spatialite/sqlite.h>
 
@@ -1298,41 +1302,31 @@ gaiaGetExifTags (const unsigned char *blob, int size)
     unsigned int offset;
     unsigned short items;
     unsigned short i;
-    int x;
     int app1_offset;
-    int app1_marker = 0;
     gaiaExifTagPtr pT;
     if (!blob)
 	goto error;
     if (size < 14)
 	goto error;
-/* cecking for SOI [Start Of Image] */
+/* checking for SOI [Start Of Image] */
     if (*(blob + 0) == 0xff && *(blob + 1) == 0xd8)
 	;
     else
 	goto error;
-    app1_offset = 2;
-    for (x = 2; x < size; x++)
+    for (app1_offset = 2; app1_offset < size - 1; app1_offset++)
       {
-	  /* retrieving the APP1 Marker */
-	  if (*(blob + x) == 0xff)
-	      app1_marker = 1;
-	  if (*(blob + x) == 0xe1)
+	  if (*(blob + app1_offset) == 0xff
+	      && *(blob + app1_offset + 1) == 0xe1)
 	    {
-		if (app1_marker)
-		  {
-		      app1_offset = x - 1;
-		      break;
-		  }
-		else
-		    app1_marker = 0;
+		/* found APP1 marker */
+		break;
 	    }
       }
-/* checking for APP1 Marker */
-    if (*(blob + app1_offset) == 0xff && *(blob + app1_offset + 1) == 0xe1)
-	;
-    else
-	goto error;
+    if (app1_offset == size - 1)
+      {
+	  /* we've reached the end of the file, but not found the marker */
+	  goto error;
+      }
 /* checking for EXIF identifier */
     if (memcmp (blob + app1_offset + 4, "Exif", 4) == 0)
 	;
@@ -2172,15 +2166,15 @@ gaiaExifTagGetHumanReadable (const gaiaExifTagPtr tag, char *str, int len,
 		  case 11:
 		      human = "Shade";
 		  case 12:
-		      human = "Daylight fluorescent (D 5700 – 7100K)";
+		      human = "Daylight fluorescent (D 5700 - 7100K)";
 		      break;
 		  case 13:
-		      human = "Day white fluorescent (N 4600 – 5400K)";
+		      human = "Day white fluorescent (N 4600 - 5400K)";
 		      break;
 		  case 14:
-		      human = "Cool white fluorescent (W 3900 – 4500K)";
+		      human = "Cool white fluorescent (W 3900 - 4500K)";
 		  case 15:
-		      human = "White fluorescent (WW 3200 – 3700K)";
+		      human = "White fluorescent (WW 3200 - 3700K)";
 		      break;
 		  case 17:
 		      human = "Standard light A";
@@ -2522,6 +2516,14 @@ gaiaGuessBlobType (const unsigned char *blob, int size)
       }
     if (geom)
 	return GAIA_GEOMETRY_BLOB;
+
+#ifdef ENABLE_LIBXML2		/* LIBXML2 enabled: supporting XML documents */
+
+    if (gaiaIsValidXmlBlob (blob, size))
+	return GAIA_XML_BLOB;
+
+#endif /* end LIBXML2: supporting XML documents */
+
     return GAIA_HEX_BLOB;
 }
 
