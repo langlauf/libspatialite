@@ -1,8 +1,6 @@
 /*
 
     GeoPackage extensions for SpatiaLite / SQLite
-     
-    version 4.2, 2014 July 25
  
 Version: MPL 1.1/GPL 2.0/LGPL 2.1
 
