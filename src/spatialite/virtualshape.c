@@ -2,7 +2,7 @@
 
  virtualshape.c -- SQLite3 extension [VIRTUAL TABLE accessing Shapefile]
 
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -1157,8 +1157,8 @@ vshp_rollback (sqlite3_vtab * pVTab)
     return SQLITE_OK;
 }
 
-int
-sqlite3VirtualShapeInit (sqlite3 * db)
+static int
+spliteVirtualShapeInit (sqlite3 * db)
 {
     int rc = SQLITE_OK;
     my_shape_module.iVersion = 1;
@@ -1184,10 +1184,11 @@ sqlite3VirtualShapeInit (sqlite3 * db)
     return rc;
 }
 
-int
-virtualshape_extension_init (sqlite3 * db)
+SPATIALITE_PRIVATE int
+virtualshape_extension_init (void *xdb)
 {
-    return sqlite3VirtualShapeInit (db);
+    sqlite3 *db = (sqlite3 *) xdb;
+    return spliteVirtualShapeInit (db);
 }
 
 #endif /* ICONV enabled/disabled */

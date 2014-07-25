@@ -2,7 +2,7 @@
 
  gg_transform.c -- Gaia PROJ.4 wrapping
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -46,6 +46,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #if defined(_WIN32) && !defined(__MINGW32__)
 #include "config-msvc.h"
@@ -58,6 +59,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #endif
 
 #include <spatialite/sqlite.h>
+#include <spatialite_private.h>
 
 #include <spatialite/gaiageo.h>
 
@@ -1589,8 +1591,9 @@ gaiaDegsToRads (double degs)
     return degs * DEG_TO_RAD;
 }
 
-GAIAGEO_DECLARE gaiaGeomCollPtr
-gaiaTransform (gaiaGeomCollPtr org, char *proj_from, char *proj_to)
+static gaiaGeomCollPtr
+gaiaTransformCommon (projCtx handle, gaiaGeomCollPtr org, char *proj_from,
+		     char *proj_to)
 {
 /* creates a new GEOMETRY reprojecting coordinates from the original one */
     int ib;
@@ -1614,9 +1617,19 @@ gaiaTransform (gaiaGeomCollPtr org, char *proj_from, char *proj_to)
     gaiaPolygonPtr dst_pg;
     gaiaRingPtr rng;
     gaiaRingPtr dst_rng;
-    projPJ from_cs = pj_init_plus (proj_from);
-    projPJ to_cs = pj_init_plus (proj_to);
+    projPJ from_cs;
+    projPJ to_cs;
     gaiaGeomCollPtr dst;
+    if (handle != NULL)
+      {
+	  from_cs = pj_init_plus_ctx (handle, proj_from);
+	  to_cs = pj_init_plus_ctx (handle, proj_to);
+      }
+    else
+      {
+	  from_cs = pj_init_plus (proj_from);
+	  to_cs = pj_init_plus (proj_to);
+      }
     if (!from_cs)
       {
 	  if (to_cs)
@@ -2099,6 +2112,30 @@ gaiaTransform (gaiaGeomCollPtr org, char *proj_from, char *proj_to)
 	  dst->DeclaredType = org->DeclaredType;
       }
     return dst;
+}
+
+GAIAGEO_DECLARE gaiaGeomCollPtr
+gaiaTransform (gaiaGeomCollPtr org, char *proj_from, char *proj_to)
+{
+    return gaiaTransformCommon (NULL, org, proj_from, proj_to);
+}
+
+GAIAGEO_DECLARE gaiaGeomCollPtr
+gaiaTransform_r (const void *p_cache, gaiaGeomCollPtr org, char *proj_from,
+		 char *proj_to)
+{
+    struct splite_internal_cache *cache =
+	(struct splite_internal_cache *) p_cache;
+    projCtx handle = NULL;
+    if (cache == NULL)
+	return NULL;
+    if (cache->magic1 != SPATIALITE_CACHE_MAGIC1
+	|| cache->magic2 != SPATIALITE_CACHE_MAGIC2)
+	return NULL;
+    handle = cache->PROJ_handle;
+    if (handle == NULL)
+	return NULL;
+    return gaiaTransformCommon (handle, org, proj_from, proj_to);
 }
 
 #endif /* end including PROJ.4 */

@@ -2,7 +2,7 @@
 
  virtualnetwork.c -- SQLite3 extension [VIRTUAL TABLE Routing - shortest path]
 
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -2228,8 +2228,8 @@ vnet_rollback (sqlite3_vtab * pVTab)
     return SQLITE_OK;
 }
 
-int
-sqlite3VirtualNetworkInit (sqlite3 * db)
+static int
+spliteVirtualNetworkInit (sqlite3 * db)
 {
     int rc = SQLITE_OK;
     my_net_module.iVersion = 1;
@@ -2255,8 +2255,9 @@ sqlite3VirtualNetworkInit (sqlite3 * db)
     return rc;
 }
 
-int
-virtualnetwork_extension_init (sqlite3 * db)
+SPATIALITE_PRIVATE int
+virtualnetwork_extension_init (void *xdb)
 {
-    return sqlite3VirtualNetworkInit (db);
+    sqlite3 *db = (sqlite3 *) xdb;
+    return spliteVirtualNetworkInit (db);
 }

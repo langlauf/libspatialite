@@ -2,7 +2,7 @@
 
  dxf_parser.c -- implements DXF support [parsing]
 
- version 4.1, 2013 May 14
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -61,6 +61,10 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <spatialite/gg_dxf.h>
 #include <spatialite.h>
 
+#include "dxf_private.h"
+
+#ifndef OMIT_GEOS		/* only if GEOS is enabled */
+
 typedef struct dxf_segment
 {
 /* a DXF segment */
@@ -89,8 +93,6 @@ typedef struct dxf_rings_collection
     gaiaDxfPolylinePtr last;
 } dxfRingsCollection;
 typedef dxfRingsCollection *dxfRingsCollectionPtr;
-
-
 
 static gaiaDxfHatchSegmPtr
 alloc_dxf_hatch_segm (double x0, double y0, double x1, double y1)
@@ -336,7 +338,7 @@ apply_hatch (gaiaGeomCollPtr boundary, gaiaGeomCollPtr geom, double angle,
 }
 
 static void
-create_dxf_hatch_lines (gaiaDxfHatchPtr hatch, int srid)
+create_dxf_hatch_lines (const void *p_cache, gaiaDxfHatchPtr hatch, int srid)
 {
 /* creating Pattern Hatch lines */
     gaiaDxfBoundaryPathPtr path;
@@ -386,8 +388,10 @@ create_dxf_hatch_lines (gaiaDxfHatchPtr hatch, int srid)
 	  path = path->next;
       }
 /* attempting to reassemble the Boundary */
-
-    result = gaiaPolygonize (geom, 0);
+    if (p_cache != NULL)
+	result = gaiaPolygonize_r (p_cache, geom, 0);
+    else
+	result = gaiaPolygonize (geom, 0);
     gaiaFreeGeomColl (geom);
     if (result == NULL)
 	return;
@@ -416,7 +420,10 @@ create_dxf_hatch_lines (gaiaDxfHatchPtr hatch, int srid)
 	apply_hatch (result, geom, angle, hatch->spacing, hatch->base_x,
 		     hatch->base_y);
     gaiaMbrGeometry (geom);
-    clipped = gaiaGeometryIntersection (geom, result);
+    if (p_cache != NULL)
+	clipped = gaiaGeometryIntersection_r (p_cache, geom, result);
+    else
+	clipped = gaiaGeometryIntersection (geom, result);
     gaiaFreeGeomColl (geom);
     if (clipped == NULL)
 	return;
@@ -481,8 +488,43 @@ destroy_dxf_hole (gaiaDxfHolePtr hole)
     free (hole);
 }
 
+static int
+force_closure (gaiaDxfPolylinePtr line)
+{
+/* checking (and eventually forcing) first/last vertex coherency */
+    if (check_unclosed_polyg (line, 1))
+      {
+	  /* not properly closed: forcing the last vertex */
+	  double *ptr_x;
+	  double *ptr_y;
+	  double *ptr_z;
+	  ptr_x = realloc (line->x, sizeof (double) * (line->points + 1));
+	  ptr_y = realloc (line->y, sizeof (double) * (line->points + 1));
+	  ptr_z = realloc (line->z, sizeof (double) * (line->points + 1));
+	  if (ptr_x == NULL || ptr_y == NULL || ptr_z == NULL)
+	    {
+		/* some unexpected error happened - giving up */
+		if (ptr_x == NULL)
+		    free (ptr_x);
+		if (ptr_y == NULL)
+		    free (ptr_y);
+		if (ptr_z == NULL)
+		    free (ptr_z);
+		return 0;
+	    }
+	  line->x = ptr_x;
+	  line->y = ptr_y;
+	  line->z = ptr_z;
+	  *(line->x + line->points) = *(line->x + 0);
+	  *(line->y + line->points) = *(line->y + 0);
+	  *(line->z + line->points) = *(line->z + 0);
+	  line->points += 1;
+      }
+    return 1;
+}
+
 static void
-linked_rings (gaiaDxfPolylinePtr line)
+linked_rings (const void *p_cache, gaiaDxfPolylinePtr line)
 {
 /* attempt to identify linked Polygon rings */
     int i;
@@ -505,6 +547,11 @@ linked_rings (gaiaDxfPolylinePtr line)
     if (line == NULL)
 	return;
     if (line->points <= 0)
+	return;
+    if (line->is_closed == 0)
+	return;
+
+    if (!force_closure (line))
 	return;
 
     coll = malloc (sizeof (dxfLinkedSegments));
@@ -581,7 +628,10 @@ linked_rings (gaiaDxfPolylinePtr line)
     free (coll);
 
 /* attempting to reassemble a polygon */
-    result = gaiaPolygonize (geom, 0);
+    if (p_cache != NULL)
+	result = gaiaPolygonize_r (p_cache, geom, 0);
+    else
+	result = gaiaPolygonize (geom, 0);
     gaiaFreeGeomColl (geom);
     if (result == NULL)
 	return;
@@ -1246,7 +1296,7 @@ insert_dxf_ring (dxfRingsCollectionPtr coll, gaiaDxfPolylinePtr line, int start,
 }
 
 static void
-unlinked_rings (gaiaDxfPolylinePtr line)
+unlinked_rings (const void *p_cache, gaiaDxfPolylinePtr line)
 {
 /* attempt to identify unlinked Polygon rings */
     int invalid;
@@ -1270,6 +1320,11 @@ unlinked_rings (gaiaDxfPolylinePtr line)
     if (line == NULL)
 	return;
     if (line->points <= 0)
+	return;
+    if (line->is_closed == 0)
+	return;
+
+    if (!force_closure (line))
 	return;
 
     coll = alloc_dxf_rings ();
@@ -1331,7 +1386,10 @@ unlinked_rings (gaiaDxfPolylinePtr line)
     destroy_dxf_rings (coll);
 
 /* attempting to reassemble a polygon */
-    result = gaiaPolygonize (geom, 0);
+    if (p_cache != NULL)
+	result = gaiaPolygonize_r (p_cache, geom, 0);
+    else
+	result = gaiaPolygonize (geom, 0);
     gaiaFreeGeomColl (geom);
     if (result == NULL)
 	return;
@@ -1390,8 +1448,8 @@ unlinked_rings (gaiaDxfPolylinePtr line)
 }
 
 static void
-insert_dxf_polyline (gaiaDxfParserPtr dxf, const char *layer_name,
-		     gaiaDxfPolylinePtr ln)
+insert_dxf_polyline (const void *p_cache, gaiaDxfParserPtr dxf,
+		     const char *layer_name, gaiaDxfPolylinePtr ln)
 {
 /* inserting a POLYLINE object into the appropriate Layer */
     gaiaDxfLayerPtr lyr = dxf->first_layer;
@@ -1401,9 +1459,9 @@ insert_dxf_polyline (gaiaDxfParserPtr dxf, const char *layer_name,
 	    {
 		/* found the matching Layer */
 		if (dxf->linked_rings)
-		    linked_rings (ln);
+		    linked_rings (p_cache, ln);
 		if (dxf->unlinked_rings)
-		    unlinked_rings (ln);
+		    unlinked_rings (p_cache, ln);
 		if (ln->is_closed)
 		  {
 		      /* it's a Ring */
@@ -1454,13 +1512,14 @@ insert_dxf_polyline (gaiaDxfParserPtr dxf, const char *layer_name,
 }
 
 static void
-insert_dxf_block_polyline (gaiaDxfParserPtr dxf, gaiaDxfPolylinePtr ln)
+insert_dxf_block_polyline (const void *p_cache, gaiaDxfParserPtr dxf,
+			   gaiaDxfPolylinePtr ln)
 {
 /* inserting a POLYLINE object into the current Block */
     if (dxf->linked_rings)
-	linked_rings (ln);
+	linked_rings (p_cache, ln);
     if (dxf->unlinked_rings)
-	unlinked_rings (ln);
+	unlinked_rings (p_cache, ln);
     if (ln->is_closed)
       {
 	  /* it's a Ring */
@@ -1860,7 +1919,7 @@ set_dxf_vertex (gaiaDxfParserPtr dxf)
 }
 
 static void
-save_current_polyline (gaiaDxfParserPtr dxf)
+save_current_polyline (const void *p_cache, gaiaDxfParserPtr dxf)
 {
 /* saving the current Polyline */
     int points = 0;
@@ -1889,11 +1948,11 @@ save_current_polyline (gaiaDxfParserPtr dxf)
 	  pt = pt->next;
       }
     if (dxf->is_block)
-	insert_dxf_block_polyline (dxf, ln);
+	insert_dxf_block_polyline (p_cache, dxf, ln);
     else
       {
 	  force_missing_layer (dxf);
-	  insert_dxf_polyline (dxf, dxf->curr_layer_name, ln);
+	  insert_dxf_polyline (p_cache, dxf, dxf->curr_layer_name, ln);
       }
     /* resetting the current polyline */
   clear:
@@ -1913,13 +1972,13 @@ save_current_polyline (gaiaDxfParserPtr dxf)
 }
 
 static void
-reset_dxf_polyline (gaiaDxfParserPtr dxf)
+reset_dxf_polyline (const void *p_cache, gaiaDxfParserPtr dxf)
 {
 /* resetting the current DXF polyline */
     if (dxf->is_polyline)
       {
 	  if (dxf->first_pt != NULL)
-	      save_current_polyline (dxf);
+	      save_current_polyline (p_cache, dxf);
 	  dxf->is_polyline = 0;
       }
 }
@@ -2016,7 +2075,7 @@ find_dxf_block (gaiaDxfParserPtr dxf, const char *layer_name,
 }
 
 static void
-save_current_circle (gaiaDxfParserPtr dxf)
+save_current_circle (const void *p_cache, gaiaDxfParserPtr dxf)
 {
 /* saving the current Circle */
     int iv;
@@ -2045,11 +2104,11 @@ save_current_circle (gaiaDxfParserPtr dxf)
 	  *(ln->z + iv) = dxf->curr_circle.cz;
       }
     if (dxf->is_block)
-	insert_dxf_block_polyline (dxf, ln);
+	insert_dxf_block_polyline (p_cache, dxf, ln);
     else
       {
 	  force_missing_layer (dxf);
-	  insert_dxf_polyline (dxf, dxf->curr_layer_name, ln);
+	  insert_dxf_polyline (p_cache, dxf, dxf->curr_layer_name, ln);
       }
   stop:
     /* resetting curr_layer */
@@ -2061,7 +2120,7 @@ save_current_circle (gaiaDxfParserPtr dxf)
 }
 
 static void
-save_current_arc (gaiaDxfParserPtr dxf)
+save_current_arc (const void *p_cache, gaiaDxfParserPtr dxf)
 {
 /* saving the current Arc */
     int iv;
@@ -2090,11 +2149,11 @@ save_current_arc (gaiaDxfParserPtr dxf)
 	  *(ln->z + iv) = dxf->curr_arc.cz;
       }
     if (dxf->is_block)
-	insert_dxf_block_polyline (dxf, ln);
+	insert_dxf_block_polyline (p_cache, dxf, ln);
     else
       {
 	  force_missing_layer (dxf);
-	  insert_dxf_polyline (dxf, dxf->curr_layer_name, ln);
+	  insert_dxf_polyline (p_cache, dxf, dxf->curr_layer_name, ln);
       }
   stop:
     /* resetting curr_layer */
@@ -2106,7 +2165,7 @@ save_current_arc (gaiaDxfParserPtr dxf)
 }
 
 static void
-reset_dxf_entity (gaiaDxfParserPtr dxf)
+reset_dxf_entity (const void *p_cache, gaiaDxfParserPtr dxf)
 {
 /* resetting the current DXF entity */
     gaiaDxfExtraAttrPtr ext;
@@ -2218,11 +2277,11 @@ reset_dxf_entity (gaiaDxfParserPtr dxf)
 			      dxf->curr_end_point.x, dxf->curr_end_point.y,
 			      dxf->curr_end_point.z);
 	  if (dxf->is_block)
-	      insert_dxf_block_polyline (dxf, ln);
+	      insert_dxf_block_polyline (p_cache, dxf, ln);
 	  else
 	    {
 		force_missing_layer (dxf);
-		insert_dxf_polyline (dxf, dxf->curr_layer_name, ln);
+		insert_dxf_polyline (p_cache, dxf, dxf->curr_layer_name, ln);
 	    }
 	  /* resetting curr_line */
 	  dxf->curr_point.x = 0.0;
@@ -2244,7 +2303,8 @@ reset_dxf_entity (gaiaDxfParserPtr dxf)
 	    {
 		if (is_valid_dxf_hatch (dxf->curr_hatch))
 		  {
-		      create_dxf_hatch_lines (dxf->curr_hatch, dxf->srid);
+		      create_dxf_hatch_lines (p_cache, dxf->curr_hatch,
+					      dxf->srid);
 		      if (dxf->is_block)
 			  insert_dxf_block_hatch (dxf, dxf->curr_hatch);
 		      else
@@ -2316,13 +2376,13 @@ reset_dxf_entity (gaiaDxfParserPtr dxf)
     if (dxf->is_lwpolyline)
       {
 	  /* saving the current Polyline */
-	  save_current_polyline (dxf);
+	  save_current_polyline (p_cache, dxf);
 	  dxf->is_lwpolyline = 0;
       }
     if (dxf->is_circle)
       {
 	  /* saving the current Circle */
-	  save_current_circle (dxf);
+	  save_current_circle (p_cache, dxf);
 	  /* resetting curr_circle */
 	  dxf->curr_circle.cx = 0.0;
 	  dxf->curr_circle.cy = 0.0;
@@ -2337,7 +2397,7 @@ reset_dxf_entity (gaiaDxfParserPtr dxf)
     if (dxf->is_arc)
       {
 	  /* saving the current Arc */
-	  save_current_arc (dxf);
+	  save_current_arc (p_cache, dxf);
 	  /* resetting curr_arc */
 	  dxf->curr_arc.cx = 0.0;
 	  dxf->curr_arc.cy = 0.0;
@@ -2604,7 +2664,7 @@ op_code_line (const char *line)
 }
 
 static int
-parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
+parse_dxf_line (const void *p_cache, gaiaDxfParserPtr dxf, const char *line)
 {
 /* parsing a DXF line */
     dxf->line_no += 1;
@@ -2624,7 +2684,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
 		  }
 		dxf->op_code = atoi (line);
 		if (dxf->op_code == 0)
-		    reset_dxf_entity (dxf);
+		    reset_dxf_entity (p_cache, dxf);
 		dxf->op_code_line = 0;
 		return 1;
 	    }
@@ -2640,7 +2700,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "SECTION") == 0)
       {
 	  /* start SECTION tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->section)
 	    {
 		spatialite_e ("ERROR on line %d: unexpected SECTION\n",
@@ -2654,7 +2714,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "ENDSEC") == 0)
       {
 	  /* end SECTION tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (!dxf->section)
 	    {
 		spatialite_e ("ERROR on line %d: unexpected ENDSEC\n",
@@ -2672,7 +2732,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "TABLES") == 0)
       {
 	  /* start TABLES tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->section)
 	    {
 		dxf->tables = 1;
@@ -2683,7 +2743,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "BLOCKS") == 0)
       {
 	  /* start BLOCKS tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->section)
 	    {
 		dxf->blocks = 1;
@@ -2694,7 +2754,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "BLOCK") == 0)
       {
 	  /* start BLOCK tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->blocks)
 	    {
 		dxf->is_block = 1;
@@ -2705,7 +2765,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "ENDBLK") == 0)
       {
 	  /* end BLOCK tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->is_block)
 	    {
 		insert_dxf_block (dxf);
@@ -2717,7 +2777,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "ENTITIES") == 0)
       {
 	  /* start ENTITIES tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->section)
 	    {
 		dxf->entities = 1;
@@ -2728,7 +2788,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "LAYER") == 0)
       {
 	  /* start LAYER tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->tables && dxf->op_code == 0)
 	    {
 		dxf->is_layer = 1;
@@ -2738,7 +2798,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "INSERT") == 0)
       {
 	  /* start INSERT tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_insert = 1;
@@ -2748,7 +2808,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "INSERT") == 0)
       {
 	  /* start INSERT tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_insert = 1;
@@ -2758,7 +2818,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "TEXT") == 0)
       {
 	  /* start TEXT tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_text = 1;
@@ -2773,7 +2833,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "POINT") == 0)
       {
 	  /* start POINT tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_point = 1;
@@ -2788,7 +2848,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "POLYLINE") == 0)
       {
 	  /* start POLYLINE tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_polyline = 1;
@@ -2803,7 +2863,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "LWPOLYLINE") == 0)
       {
 	  /* start LWPOLYLINE tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_lwpolyline = 1;
@@ -2818,7 +2878,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "LINE") == 0)
       {
 	  /* start LINE tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_line = 1;
@@ -2833,7 +2893,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "CIRCLE") == 0)
       {
 	  /* start CIRCLE tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_circle = 1;
@@ -2848,7 +2908,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "ARC") == 0)
       {
 	  /* start ARC tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  if (dxf->entities && dxf->op_code == 0)
 	    {
 		dxf->is_arc = 1;
@@ -2886,7 +2946,7 @@ parse_dxf_line (gaiaDxfParserPtr dxf, const char *line)
     if (strcmp (line, "EOF") == 0)
       {
 	  /* end of file marker tag */
-	  reset_dxf_polyline (dxf);
+	  reset_dxf_polyline (p_cache, dxf);
 	  dxf->eof = 1;
 	  return 1;
       }
@@ -3419,8 +3479,9 @@ save_dxf_filename (gaiaDxfParserPtr dxf, const char *path)
       }
 }
 
-GAIAGEO_DECLARE int
-gaiaParseDxfFile (gaiaDxfParserPtr dxf, const char *path)
+static int
+gaiaParseDxfFileCommon (const void *p_cache, gaiaDxfParserPtr dxf,
+			const char *path)
 {
 /* parsing the whole DXF file */
     int c;
@@ -3451,7 +3512,7 @@ gaiaParseDxfFile (gaiaDxfParserPtr dxf, const char *path)
 	    {
 		/* end line found */
 		*p = '\0';
-		if (!parse_dxf_line (dxf, line))
+		if (!parse_dxf_line (p_cache, dxf, line))
 		    goto stop;
 		if (dxf->eof)
 		  {
@@ -3474,3 +3535,17 @@ gaiaParseDxfFile (gaiaDxfParserPtr dxf, const char *path)
     fclose (fl);
     return 0;
 }
+
+GAIAGEO_DECLARE int
+gaiaParseDxfFile (gaiaDxfParserPtr dxf, const char *path)
+{
+    return gaiaParseDxfFileCommon (NULL, dxf, path);
+}
+
+GAIAGEO_DECLARE int
+gaiaParseDxfFile_r (const void *p_cache, gaiaDxfParserPtr dxf, const char *path)
+{
+    return gaiaParseDxfFileCommon (p_cache, dxf, path);
+}
+
+#endif /* GEOS enabled */

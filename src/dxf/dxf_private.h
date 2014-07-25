@@ -1,7 +1,7 @@
 /* 
  dxf_private.h -- DXF Import Private API
   
- version 4.1, 2013 May 14
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -184,6 +184,10 @@ extern "C"
 	create_insert_extra_attr_table (sqlite3 * handle, const char *name,
 					char *extra_name,
 					sqlite3_stmt ** xstmt_ext);
+
+    DXF_PRIVATE int check_unclosed_polyg (gaiaDxfPolylinePtr pg, int is3d);
+
+    DXF_PRIVATE int check_unclosed_hole (gaiaDxfHolePtr hole, int is3d);
 
 #ifdef __cplusplus
 }

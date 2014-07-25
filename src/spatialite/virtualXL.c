@@ -2,7 +2,7 @@
 
  virtualXLc -- SQLite3 extension [VIRTUAL TABLE accessing .XLS]
 
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -900,8 +900,8 @@ vXL_rollback (sqlite3_vtab * pVTab)
     return SQLITE_OK;
 }
 
-int
-sqlite3VirtualXLInit (sqlite3 * db)
+static int
+spliteVirtualXLInit (sqlite3 * db)
 {
     int rc = SQLITE_OK;
     my_XL_module.iVersion = 1;
@@ -927,10 +927,11 @@ sqlite3VirtualXLInit (sqlite3 * db)
     return rc;
 }
 
-int
-virtualXL_extension_init (sqlite3 * db)
+SPATIALITE_PRIVATE int
+virtualXL_extension_init (void *xdb)
 {
-    return sqlite3VirtualXLInit (db);
+    sqlite3 *db = (sqlite3 *) xdb;
+    return spliteVirtualXLInit (db);
 }
 
 #endif /* FreeXL enabled/disabled */

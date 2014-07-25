@@ -2,7 +2,7 @@
 
  gaia_exif.c -- Gaia EXIF support
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -61,6 +61,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #include <spatialite/gaiageo.h>
 #include <spatialite/gaiaexif.h>
+#include <spatialite/geopackage.h>
 #include <spatialite.h>
 
 #ifdef _WIN32
@@ -2523,6 +2524,13 @@ gaiaGuessBlobType (const unsigned char *blob, int size)
 	return GAIA_XML_BLOB;
 
 #endif /* end LIBXML2: supporting XML documents */
+
+#ifdef ENABLE_GEOPACKAGE	/* GEOPACKAGE enabled: supporting GPKG geometries */
+
+    if (gaiaIsValidGPB (blob, size))
+	return GAIA_GPB_BLOB;
+
+#endif /* end GEOPACKAGE: supporting GPKG geometries */
 
     return GAIA_HEX_BLOB;
 }

@@ -2,7 +2,7 @@
 
  gg_vanuatu.c -- WKT parser/lexer 
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -214,8 +214,8 @@ vanuatuMapDynAlloc (struct vanuatu_data *p_data, int type, void *ptr)
 	  p_data->vanuatu_last_dyn_block->next = p;
 	  p_data->vanuatu_last_dyn_block = p;
       }
-    p_data->vanuatu_last_dyn_block->type[p_data->vanuatu_last_dyn_block->
-					 index] = type;
+    p_data->vanuatu_last_dyn_block->type[p_data->
+					 vanuatu_last_dyn_block->index] = type;
     p_data->vanuatu_last_dyn_block->ptr[p_data->vanuatu_last_dyn_block->index] =
 	ptr;
     p_data->vanuatu_last_dyn_block->index++;

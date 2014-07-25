@@ -2,7 +2,7 @@
 
  srs_init.c -- populating the SPATIAL_REF_SYS table
 
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -189,7 +189,7 @@ add_srs_wkt (struct epsg_defs *p, int count, const char *text)
     strcat (p->srs_wkt, text);
 }
 
-static void
+SPATIALITE_PRIVATE void
 free_epsg (struct epsg_defs *first)
 {
 /* memory cleanup - destroying the EPSG list */
