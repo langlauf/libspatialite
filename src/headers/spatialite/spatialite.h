@@ -1,7 +1,7 @@
 /* 
  spatialite.h -- Gaia support for SQLite extensions
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -54,6 +54,7 @@ SPATIALITE_PRIVATE int virtualbbox_extension_init (void *db,
 						   const void *p_cache);
 SPATIALITE_PRIVATE int mbrcache_extension_init (void *db);
 SPATIALITE_PRIVATE int virtual_spatialindex_extension_init (void *db);
+SPATIALITE_PRIVATE int virtual_elementary_extension_init (void *db);
 SPATIALITE_PRIVATE int virtual_xpath_extension_init (void *db,
 						     const void *p_cache);
 SPATIALITE_PRIVATE int virtualgpkg_extension_init (void *db);

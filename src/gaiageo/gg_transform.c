@@ -2,7 +2,7 @@
 
  gg_transform.c -- Gaia PROJ.4 wrapping
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -772,10 +772,10 @@ gaiaNormalizeLonLat (gaiaGeomCollPtr geom)
 */
     int ib;
     int iv;
-    double x;
-    double y;
-    double z;
-    double m;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double m = 0.0;
     gaiaPointPtr point;
     gaiaPolygonPtr polyg;
     gaiaLinestringPtr line;

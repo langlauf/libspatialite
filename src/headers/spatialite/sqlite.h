@@ -1,7 +1,7 @@
 /* 
  sqlite.h -- supporting SQLite headers in a flexible way
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -60,6 +60,11 @@ extern const sqlite3_api_routines *sqlite3_api;
 #else
 #include <sqlite3.h>
 #endif
+#endif
+
+#ifndef SQLITE_DETERMINISTIC
+/* probably SQLite < 3.8.3 - attempting to fix */
+#define SQLITE_DETERMINISTIC	SQLITE_UTF8
 #endif
 
 #endif

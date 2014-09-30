@@ -2,7 +2,7 @@
 
  gg_relations_ext.c -- Gaia spatial relations [advanced]
     
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -3606,10 +3606,10 @@ rotateRingBeforeCut (gaiaLinestringPtr ln, gaiaPointPtr node)
     int iv;
     int copy = 0;
     int base_idx = -1;
-    double x;
-    double y;
-    double z;
-    double m;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double m = 0.0;
     gaiaLinestringPtr new_ln = NULL;
 
     if (ln->DimensionModel == GAIA_XY_Z)
@@ -3825,10 +3825,10 @@ cutLineAtNodes (gaiaLinestringPtr ln, gaiaPointPtr pt_base,
     int match = 0;
     int iv;
     int i_start;
-    double x;
-    double y;
-    double z;
-    double m;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double m = 0.0;
     gaiaPointPtr pt;
     gaiaPointPtr node = NULL;
 

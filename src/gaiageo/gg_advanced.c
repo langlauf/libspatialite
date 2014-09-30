@@ -2,7 +2,7 @@
 
  gg_advanced.c -- Gaia advanced geometric operations
   
- version 4.1, 2013 May 8
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -1471,14 +1471,14 @@ gaiaDissolveSegments (gaiaGeomCollPtr geom)
     gaiaRingPtr rng;
     int iv;
     int ib;
-    double x;
-    double y;
-    double z;
-    double m;
-    double x0;
-    double y0;
-    double z0;
-    double m0;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double m = 0.0;
+    double x0 = 0.0;
+    double y0 = 0.0;
+    double z0 = 0.0;
+    double m0 = 0.0;
     if (!geom)
 	return NULL;
 
@@ -1752,10 +1752,10 @@ gaiaDissolvePoints (gaiaGeomCollPtr geom)
     gaiaRingPtr rng;
     int iv;
     int ib;
-    double x;
-    double y;
-    double z;
-    double m;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double m = 0.0;
     if (!geom)
 	return NULL;
 

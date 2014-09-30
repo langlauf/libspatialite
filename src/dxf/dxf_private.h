@@ -1,7 +1,7 @@
 /* 
  dxf_private.h -- DXF Import Private API
   
- version 4.1, 2013 May 14
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -40,6 +40,15 @@ and other provisions required by the GPL or the LGPL. If you do not delete
 the provisions above, a recipient may use your version of this file under
 the terms of any one of the MPL, the GPL or the LGPL.
  
+*/
+
+/*
+ 
+CREDITS:
+
+inital development of the DXF module has been funded by:
+Regione Toscana - Settore Sistema Informativo Territoriale ed Ambientale
+
 */
 
 /**
