@@ -2,7 +2,7 @@
 
  spatialite.c -- SQLite3 spatial extension
 
- version 4.3, 2015 June 29
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -28871,7 +28871,7 @@ scan_dxf_dir (sqlite3 * db_handle, struct splite_internal_cache *cache,
 		if ((c_file.attrib & _A_RDONLY) == _A_RDONLY
 		    || (c_file.attrib & _A_NORMAL) == _A_NORMAL)
 		  {
-		      if (is_dxf_file (c_file.name))
+		      if (is_dxf_file (entry->d_name))
 			{
 			    filepath =
 				sqlite3_mprintf ("%s/%s", dir_path,
@@ -28887,7 +28887,7 @@ scan_dxf_dir (sqlite3 * db_handle, struct splite_internal_cache *cache,
 		    break;
 	    };
 	  _findclose (hFile);
-      }
+      re}
 #else
 /* not Visual Studio .NET */
     struct dirent *entry;

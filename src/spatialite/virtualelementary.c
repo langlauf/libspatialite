@@ -2,7 +2,7 @@
 
  virtualelementary.c -- SQLite3 extension [VIRTUAL TABLE Elementary Geometries]
 
- version 4.3, 2015 June 29
+ version 4.2, 2014 September 16
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -785,7 +785,7 @@ velem_filter (sqlite3_vtab_cursor * pCursor, int idxNum, const char *idxStr,
     if (ret != SQLITE_OK)
 	goto stop;
 /* binding stmt params [ROWID] */
-    sqlite3_bind_int64 (stmt, 1, rowid_value);
+    sqlite3_bind_double (stmt, 1, rowid_value);
     velem_reset_cache (cursor);
     cursor->eof = 0;
 /* caching the ResultSet */

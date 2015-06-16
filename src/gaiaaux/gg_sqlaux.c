@@ -2,7 +2,7 @@
 
  gg_sqlaux.c -- SQL ancillary functions
 
- version 4.3, 2015 June 29
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -1175,18 +1175,18 @@ gaiaConvertToDMS (double longitude, double latitude)
 	  lat_prefix = 'S';
 	  latitude *= -1.0;
       }
-    long_d = (int) floor (longitude);
+    long_d = floor (longitude);
     val = 60.0 * (longitude - (double) long_d);
-    long_m = (int) floor (val);
+    long_m = floor (val);
     val = 60.0 * (val - (double) long_m);
-    long_s = (int) floor (val);
+    long_s = floor (val);
     if ((val - (double) long_s) > 0.5)
 	long_s++;
-    lat_d = (int) floor (latitude);
+    lat_d = floor (latitude);
     val = 60.0 * (latitude - (double) lat_d);
-    lat_m = (int) floor (val);
+    lat_m = floor (val);
     val = 60.0 * (val - (double) lat_m);
-    lat_s = (int) floor (val);
+    lat_s = floor (val);
     if ((val - (double) lat_s) > 0.5)
 	lat_s++;
     dms0 =
@@ -1302,136 +1302,136 @@ GAIAAUX_DECLARE char *
 gaiaDirNameFromPath (const char *path)
 {
 /* extracting the DirName (if any) from a Path */
-    const char *in = path;
-    const char *last = NULL;
-    int len = 0;
-    int dirlen;
-    char *name;
-
-    if (path == NULL)
+	const char *in = path;
+	const char *last = NULL;
+	int len = 0;
+	int dirlen;
+	char *name;
+	
+	if (path == NULL)
 	return NULL;
-
-    while (*in != '\0')
-      {
-	  /* parsing the Path */
-	  len++;
-	  if (*in == '/' || *in == '\\')
-	    {
-		last = in;
-		dirlen = len;
-	    }
-	  in++;
-      }
-    if (last == NULL)
-	return NULL;		/* there is no Dir component */
-
+	
+	while (*in != '\0')
+	{
+	/* parsing the Path */
+		len++;
+		if (*in == '/' || *in == '\\')
+		{
+			last = in;
+			dirlen = len;
+		}
+		in++;
+	}
+	if (last == NULL)
+	return NULL;	/* there is no Dir component */
+	
 /* allocating the DirName  to be returned */
-    name = malloc (dirlen + 1);
-    memcpy (name, path, dirlen);
-    *(name + dirlen) = '\0';
-    return name;
+	name = malloc(dirlen+1);
+	memcpy(name, path, dirlen);
+	*(name+dirlen) = '\0';
+	return name;
 }
 
 GAIAAUX_DECLARE char *
 gaiaFullFileNameFromPath (const char *path)
 {
 /* extracting the FullFileName (including Extension) from a Path */
-    const char *in = path;
-    const char *last = path - 1;
-    int len;
-    char *name;
-
-    if (path == NULL)
+	const char *in = path;
+	const char *last = path - 1;
+	int len;
+	char *name;
+	
+	if (path == NULL)
 	return NULL;
-
-    while (*in != '\0')
-      {
-	  /* parsing the Path */
-	  if (*in == '/' || *in == '\\')
-	      last = in;
-	  in++;
-      }
-    len = strlen (last + 1);
-    if (len == 0)
+	
+	while (*in != '\0')
+	{
+	/* parsing the Path */
+		if (*in == '/' || *in == '\\')
+			last = in;
+		in++;
+	}
+	len = strlen(last+1);
+	if (len == 0)
 	return NULL;
-
+	
 /* allocating the FullFileName to be returned */
-    name = malloc (len + 1);
-    strcpy (name, last + 1);
-    return name;
+	name = malloc(len+1);
+	strcpy(name, last+1);
+	return name;
 }
 
 GAIAAUX_DECLARE char *
 gaiaFileNameFromPath (const char *path)
 {
 /* extracting the FileName (excluding Extension) from a Path */
-    const char *in = path;
-    const char *last = path - 1;
-    int len;
-    char *name;
-    int i;
-
-    if (path == NULL)
+	const char *in = path;
+	const char *last = path - 1;
+	int len;
+	char *name;
+	int i;
+	
+	if (path == NULL)
 	return NULL;
-
-    while (*in != '\0')
-      {
-	  /* parsing the Path */
-	  if (*in == '/' || *in == '\\')
-	      last = in;
-	  in++;
-      }
-    len = strlen (last + 1);
-    if (len == 0)
+	
+	while (*in != '\0')
+	{
+	/* parsing the Path */
+		if (*in == '/' || *in == '\\')
+			last = in;
+		in++;
+	}
+	len = strlen(last+1);
+	if (len == 0)
 	return NULL;
-
+	
 /* allocating the FullFileName to be returned */
-    name = malloc (len + 1);
-    strcpy (name, last + 1);
-    for (i = len - 1; i > 0; i--)
-      {
-	  if (*(name + i) == '.')
-	    {
+	name = malloc(len+1);
+	strcpy(name, last+1);
+	for (i = len - 1; i > 0; i--)
+	{
+		if (*(name+i) == '.')
+		{
 		/* stripping out the extension */
-		*(name + i) = '\0';
-		break;
-	    }
-      }
-    return name;
+			*(name+i) = '\0';
+			break;
+		}
+	}
+	return name;
 }
 
 GAIAAUX_DECLARE char *
 gaiaFileExtFromPath (const char *path)
 {
 /* extracting the FileExtension (if any) from a Path */
-    int len;
-    char *name;
-    int i;
-    int pos = -1;
-
-    if (path == NULL)
+	int len;
+	char *name;
+	int i;
+	int pos = -1;
+	
+	if (path == NULL)
 	return NULL;
-
-    len = strlen (path);
-    for (i = len - 1; i > 0; i--)
-      {
-	  if (*(path + i) == '/' || *(path + i) == '\\')
-	      break;
-	  if (*(path + i) == '.')
-	    {
-		/* found an extension */
-		pos = i;
+	
+	len = strlen(path);
+	for (i = len - 1; i > 0; i--)
+	{
+		if (*(path+i) == '/' || *(path+i) == '\\')
 		break;
-	    }
-      }
-    if (pos <= 0)
+		if (*(path+i) == '.')
+		{
+		/* found an extension */
+			pos = i;
+			break;
+		}
+	}
+	if (pos <= 0)
 	return NULL;
-
+	
 /* allocating the FileExtension to be returned */
-    len = strlen (path + pos + 1);
-    if (len == 0)
+	len = strlen(path + pos + 1);
+	if (len == 0)
 	return NULL;
-    name = malloc (len + 1);
-    strcpy (name, path + pos + 1);
-    return name;
+	name = malloc(len+1);
+	strcpy(name, path + pos + 1);
+	return name;
 }

@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
-AUTOMAKE_OPTIONS = dist-zip foreign
+AUTOMAKE_OPTIONS = dist-zip
 
-EXTRA_DIST = makefile.vc nmake.opt Android_3.0.2.mk Android_4.3.0.mk \
+EXTRA_DIST = makefile.vc nmake.opt Android.mk Android_4.3.0.mk \
 	spatialite-4.3.0.mk mainpage.doxy README.coverage \
 	spatialite-sql-latest.html config-msvc.h
 

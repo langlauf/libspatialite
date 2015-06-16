@@ -2,7 +2,7 @@
 
  shapefiles.c -- implements shapefile support [import - export]
 
- version 4.3, 2015 June 29
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s): Brad Hards <bradh@frogmouth.net>
@@ -1608,9 +1608,9 @@ compute_max_dbl_length (double min, double max)
     int neg_len = 1;
     sqlite3_int64 value;
     if (max >= 0.0)
-	value = (sqlite3_int64) floor (max);
+	value = floor (max);
     else
-	value = (sqlite3_int64) ceil (max);
+	value = ceil (max);
     while (value != 0)
       {
 	  pos_len++;
@@ -1618,7 +1618,7 @@ compute_max_dbl_length (double min, double max)
       }
     if (min >= 0.0)
 	return pos_len + 7;
-    value = (sqlite3_int64) ceil (min);
+    value = ceil (min);
     while (value != 0)
       {
 	  neg_len++;

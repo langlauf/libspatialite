@@ -2,7 +2,7 @@
 
  gg_wkb.c -- Gaia common support for WKB encoded geometries
   
- version 4.3, 2015 June 29
+ version 4.2, 2014 July 25
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2013
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -1388,10 +1388,8 @@ gaiaToSpatiaLiteBlobWkbEx (gaiaGeomCollPtr geom, unsigned char **result,
 
     if (gpkg_mode)
       {
-#ifdef ENABLE_GEOPACKAGE	/* only if GeoPackage support is enabled */
 	  /* GeoPackage Mode enabled */
 	  gaiaToGPB (geom, result, size);
-#endif /* end GEOPACKAGE conditional */
 	  return;
       }
 
