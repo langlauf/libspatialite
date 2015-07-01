@@ -2,7 +2,7 @@
 
  validator.c -- implements geometry validation and repair
 
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Alternatively, the contents of this file may be used under the terms of
@@ -1675,6 +1675,8 @@ sanitize_geometry_column_common (const void *p_cache, sqlite3 * sqlite,
 				 int *n_discarded, int *n_failures,
 				 char **err_msg)
 {
+#ifdef ENABLE_LWGEOM		/* only if LWGEOM is enabled */
+
 /* attempts to repair invalid Geometries from a Geometry Column */
     char *sql;
     char *xtable;
@@ -2300,7 +2302,7 @@ sanitize_geometry_column_common (const void *p_cache, sqlite3 * sqlite,
     else if (report->n_repaired > 0)
       {
 	  fprintf (out,
-		   "\t\t\t<tr><td colspan=\"2\" class=\"ok\">This layer has been succesfully repaired and is now completely valid;<br>");
+		   "\t\t\t<tr><td colspan=\"2\" class=\"ok\">This layer has been successfully repaired and is now completely valid;<br>");
 	  fprintf (out,
 		   "doesn't require any further corrective action.</td></tr>\n");
       }
@@ -2407,6 +2409,9 @@ sanitize_geometry_column_common (const void *p_cache, sqlite3 * sqlite,
     free_sanitize_report (report);
     if (out)
 	fclose (out);
+	
+#endif /* end LWGEOM conditional */
+    
     return 0;
 }
 
@@ -2632,7 +2637,7 @@ sanitize_all_geometry_columns_common (const void *p_cache, sqlite3 * sqlite,
 		else if (n_discarded == 0 && n_failures == 0)
 		  {
 		      p_msg =
-			  "NONE: this layer has been succesfully sanitized and is now fully valid";
+			  "NONE: this layer has been successfully sanitized and is now fully valid";
 		      cls_msg = "ok";
 		  }
 		else if (n_discarded == 0 && n_failures > 0)

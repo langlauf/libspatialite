@@ -2,7 +2,7 @@
 
  virtualtext.c -- SQLite3 extension [VIRTUAL TABLE accessing CSV/TXT]
 
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -1150,7 +1150,7 @@ vrttxt_is_integer (const char *value)
 	  p++;
       }
     if (invalids)
-	return 0;		/* invalid chars where found */
+	return 0;		/* invalid chars were found */
     if (signs > 1)
 	return 0;		/* more than a single sign */
     if (signs)
@@ -1200,7 +1200,7 @@ vrttxt_is_double (const char *value, char decimal_separator)
 	  p++;
       }
     if (invalids)
-	return 0;		/* invalid chars where found */
+	return 0;		/* invalid chars were found */
     if (points > 1)
 	return 0;		/* more than a single decimal separator */
     if (signs > 1)

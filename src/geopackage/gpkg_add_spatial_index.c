@@ -18,7 +18,7 @@ The Original Code is GeoPackage Extensions
 
 The Initial Developer of the Original Code is Sandro Furieri (a.furieri@lqt.it)
  
-Portions created by the Initial Developer are Copyright (C) 2014
+Portions created by the Initial Developer are Copyright (C) 2014-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -44,7 +44,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include "geopackage_internal.h"
 
 #ifdef ENABLE_GEOPACKAGE
-GEOPACKAGE_DECLARE void
+GEOPACKAGE_PRIVATE void
 fnct_gpkgAddSpatialIndex (sqlite3_context * context, int argc
 			  __attribute__ ((unused)), sqlite3_value ** argv)
 {

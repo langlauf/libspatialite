@@ -2,7 +2,7 @@
 
  gg_transform.c -- Gaia PROJ.4 wrapping
   
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -198,6 +198,12 @@ gaiaMakeEllipticArc (double cx,
 	  y = cy + (y_axis * sin (rads));
 	  gaiaAppendPointToDynamicLine (dyn, x, y);
 	  angle += step;
+	  points++;
+      }
+    if (points == 0)
+      {
+	  gaiaFreeDynamicLine (dyn);
+	  return NULL;
       }
 /* closing the arc */
     rads = stop * .0174532925199432958;
@@ -207,6 +213,7 @@ gaiaMakeEllipticArc (double cx,
 	gaiaAppendPointToDynamicLine (dyn, x, y);
 
     pt = dyn->First;
+    points = 0;
     while (pt)
       {
 	  /* counting how many points */

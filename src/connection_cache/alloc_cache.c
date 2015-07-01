@@ -1,7 +1,7 @@
 /*
  alloc_cache.c -- Gaia spatial support for SQLite
 
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2013
+Portions created by the Initial Developer are Copyright (C) 2013-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -69,6 +69,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <spatialite.h>
 #include <spatialite_private.h>
 #include <spatialite/gg_advanced.h>
+#include <spatialite/gaiamatrix.h>
 
 #ifndef OMIT_GEOS		/* including GEOS */
 #include <geos_c.h>
@@ -251,6 +252,9 @@ spatialite_alloc_connection ()
       }
     cache->magic1 = SPATIALITE_CACHE_MAGIC1;
     cache->magic2 = SPATIALITE_CACHE_MAGIC2;
+    cache->gpkg_mode = 0;
+    cache->gpkg_amphibious_mode = 0;
+    cache->decimal_precision = -1;
     cache->GEOS_handle = NULL;
     cache->PROJ_handle = NULL;
     cache->pool_index = pool_index;

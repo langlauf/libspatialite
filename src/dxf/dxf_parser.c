@@ -2,7 +2,7 @@
 
  dxf_parser.c -- implements DXF support [parsing]
 
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s): 
@@ -2421,9 +2421,15 @@ reset_dxf_entity (const void *p_cache, gaiaDxfParserPtr dxf)
 	  dxf->curr_layer_name = NULL;
       }
     if (dxf->extra_key != NULL)
-	free (dxf->extra_key);
+      {
+	  free (dxf->extra_key);
+	  dxf->extra_key = NULL;
+      }
     if (dxf->extra_value != NULL)
-	free (dxf->extra_value);
+      {
+	  free (dxf->extra_value);
+	  dxf->extra_value = NULL;
+      }
     ext = dxf->first_ext;
     while (ext != NULL)
       {

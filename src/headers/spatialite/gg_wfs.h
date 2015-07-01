@@ -1,7 +1,7 @@
 /*
  gg_wfs.h -- Gaia common support for WFS
   
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -169,7 +169,7 @@ extern "C"
  \return the pointer to the corresponding WFS-Catalog object: NULL on failure
  
  \sa destroy_wfs_catalog, get_wfs_catalog_count, get_wfs_catalog_item, load_from_wfs,
- reset_wfs_http_connection
+ reset_wfs_http_connection, get_wfs_version
  
  \note an eventual error message returned via err_msg requires to be deallocated
  by invoking free().\n
@@ -188,6 +188,18 @@ extern "C"
  \sa create_wfs_catalog
  */
     SPATIALITE_DECLARE void destroy_wfs_catalog (gaiaWFScatalogPtr handle);
+
+/**
+ Return the WFS-Version string as reported by GetCapabilities
+
+ \param handle the pointer to a valid WFS-Item returned by a previous call
+ to get_wfs_catalog_item().
+
+ \return the WFS Version string: NULL is undefined
+ 
+ \sa create_wfs_catalog
+ */
+    SPATIALITE_DECLARE const char *get_wfs_version (gaiaWFScatalogPtr handle);
 
 /**
  Return the base URL for any WFS-GetFeature call
