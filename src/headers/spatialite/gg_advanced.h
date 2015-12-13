@@ -1,7 +1,7 @@
 /*
  gg_advanced.h -- Gaia common support for geometries: advanced
   
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -3544,6 +3544,21 @@ extern "C"
  */
     GAIAGEO_DECLARE int gaia3DMaxDistance (gaiaGeomCollPtr geom1,
 					   gaiaGeomCollPtr geom2, double *dist);
+
+/**
+ Calculates the 2D or 3D Length for a Linestring or Multilinestring
+ accordingly to the dimensions of Geometry
+
+ \param geom the Geometry object 
+ \param length on completion this variable will contain the calculated length
+
+ \return 0 on failure: any other value on success.
+
+ \sa gaiaGeomCollDistance
+
+ \remark \b LWGEOM support required.
+ */
+    GAIAGEO_DECLARE int gaia3dLength (gaiaGeomCollPtr geom, double *length);
 
 /**
  Utility function: Split

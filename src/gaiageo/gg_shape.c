@@ -2,7 +2,7 @@
 
  gg_shape.c -- Gaia shapefile handling
   
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -1681,6 +1681,8 @@ gaiaReadShpEntity_ex (gaiaShapefilePtr shp, int current_row, int srid,
 		shp->flDbf);
     if (rd != shp->DbfReclen)
 	goto error;
+    if (*(shp->BufDbf) == '*')
+	goto dbf_deleted;
 /* positioning and reading corresponding SHP entity - geometry */
     offset = off_shp * 2;
     skpos = fseek (shp->flShp, offset, SEEK_SET);
@@ -2532,6 +2534,11 @@ gaiaReadShpEntity_ex (gaiaShapefilePtr shp, int current_row, int srid,
     strcpy (shp->LastError, errMsg);
     shp_free_rings (&ringsColl);
     return 0;
+  dbf_deleted:
+    if (shp->LastError)
+	free (shp->LastError);
+    shp->LastError = NULL;
+    return -1;
   conversion_error:
     if (shp->LastError)
 	free (shp->LastError);
@@ -2747,7 +2754,7 @@ gaiaWriteShpEntity (gaiaShapefilePtr shp, gaiaDbfListPtr entity)
 		      if (fld->Value->Type == GAIA_TEXT_VALUE)
 			{
 			    len = strlen (fld->Value->TxtValue);
-			    dynbuf = malloc (len + 1);
+			    dynbuf = malloc (2048 + len + 1);
 			    strcpy (dynbuf, fld->Value->TxtValue);
 			    if (len > 512)
 			      {

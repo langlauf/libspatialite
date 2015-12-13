@@ -2,7 +2,7 @@
 
  table_cloner.c -- Cloning a Table
 
- version 4.2, 2014 August 23
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -173,6 +173,7 @@ struct aux_cloner
     int with_triggers;
     int append;
     int already_existing;
+    int create_only;
 };
 
 static int
@@ -2092,8 +2093,9 @@ already_existing_table (sqlite3 * sqlite, const char *table)
 }
 
 SPATIALITE_PRIVATE const void *
-gaiaAuxClonerCreate (const void *sqlite, const char *db_prefix,
-		     const char *in_table, const char *out_table)
+gaiaAuxClonerCreateEx (const void *sqlite, const char *db_prefix,
+		       const char *in_table, const char *out_table,
+		       int create_only)
 {
 /* creating a Cloner object */
     int len;
@@ -2138,6 +2140,7 @@ gaiaAuxClonerCreate (const void *sqlite, const char *db_prefix,
     cloner->with_triggers = 0;
     cloner->append = 0;
     cloner->already_existing = 0;
+    cloner->create_only = create_only;
 
 /* exploring the input table - Columns */
     if (!check_input_table_columns (cloner))
@@ -2159,6 +2162,14 @@ gaiaAuxClonerCreate (const void *sqlite, const char *db_prefix,
   error:
     free_cloner (cloner);
     return NULL;
+}
+
+SPATIALITE_PRIVATE const void *
+gaiaAuxClonerCreate (const void *sqlite, const char *db_prefix,
+		     const char *in_table, const char *out_table)
+{
+/* creating a Cloner object */
+    return gaiaAuxClonerCreateEx (sqlite, db_prefix, in_table, out_table, 0);
 }
 
 SPATIALITE_PRIVATE void
@@ -2310,10 +2321,13 @@ gaiaAuxClonerExecute (const void *handle)
 		return 0;
 	    }
       }
-    if (!copy_rows (cloner))
+    if (cloner->create_only == 0)
       {
-	  spatialite_e ("CloneTable: unable to copy Table rows\n");
-	  return 0;
+	  if (!copy_rows (cloner))
+	    {
+		spatialite_e ("CloneTable: unable to copy Table rows\n");
+		return 0;
+	    }
       }
     return 1;
 }

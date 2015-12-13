@@ -2,7 +2,7 @@
 
  srid_aux.c -- SRID auxiliary functions
 
- version 4.2.1, 2014 December 4
+ version 4.3.0, 2014 December 4
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2014
+Portions created by the Initial Developer are Copyright (C) 2014-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -1887,64 +1887,18 @@ getProjParamsFromGeopackageTable (sqlite3 * sqlite, int srid,
     spatialite_e ("unknown SRID: %d\n", srid);
 }
 
-static int
-exists_gpkg_spatial_ref_sys (void *p_sqlite)
-{
-/* checking if the GPKG_SPATIAL_REF_SYS table exists */
-    int ret;
-    int ok = 0;
-    char sql[1024];
-    char **results;
-    int n_rows;
-    int n_columns;
-    char *err_msg = NULL;
-
-    sqlite3 *handle = (sqlite3 *) p_sqlite;
-
-    strcpy (sql,
-	    "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'gpkg_spatial_ref_sys'");
-    ret =
-	sqlite3_get_table (handle, sql, &results, &n_rows, &n_columns,
-			   &err_msg);
-    if (ret != SQLITE_OK)
-      {
-/* some error occurred */
-	  spatialite_e ("XX %s\n", err_msg);
-	  sqlite3_free (err_msg);
-	  return 0;
-      }
-    if (n_rows > 0)
-	ok = 1;
-    sqlite3_free_table (results);
-    return ok;
-}
-
-SPATIALITE_PRIVATE void
-getProjParamsEx (void *p_sqlite, int srid, char **proj_params,
-		 int gpkg_amphibious_mode)
-{
-/* retrives the PROJ params - generic interface */
-    sqlite3 *sqlite = (sqlite3 *) p_sqlite;
-    *proj_params = NULL;
-    if (exists_spatial_ref_sys (sqlite))
-      {
-	  /* normal Spatialite case */
-	  getProjParamsFromSpatialReferenceSystemTable (sqlite, srid,
-							proj_params);
-      }
-    else if (exists_gpkg_spatial_ref_sys (sqlite) && gpkg_amphibious_mode)
-      {
-	  /* geopackage case */
-	  getProjParamsFromGeopackageTable (sqlite, srid, proj_params);
-      }
-}
-
 SPATIALITE_PRIVATE void
 getProjParams (void *p_sqlite, int srid, char **proj_params)
 {
-/* 
-* retrives the PROJ params from SPATIAL_SYS_REF table, if possible 
-* convenience method - disabling GPKG amphibious mode
-*/
-    getProjParamsEx (p_sqlite, srid, proj_params, 0);
+/* retrives the PROJ params from SPATIAL_SYS_REF table */
+    sqlite3 *sqlite = (sqlite3 *) p_sqlite;
+    *proj_params = NULL;
+
+/* searching within "vanilla" spatial_reference_sys */
+    getProjParamsFromSpatialReferenceSystemTable (sqlite, srid, proj_params);
+    if (*proj_params != NULL)
+	return;
+
+/* last opportunity: search within GPKG srs */
+    getProjParamsFromGeopackageTable (sqlite, srid, proj_params);
 }

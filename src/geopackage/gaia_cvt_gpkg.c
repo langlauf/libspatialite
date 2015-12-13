@@ -2,7 +2,7 @@
 
  gaia_cvt_gpkg.c -- implements GPKG DB conversion [both directions]
 
- version 4.2, 2014 May 10
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s): Brad Hards <bradh@frogmouth.net>
@@ -874,7 +874,7 @@ do_insert_content (sqlite3 * handle, const char *table_name,
 
     xtable = gaiaDoubleQuotedSql (table_name);
     xgeom = gaiaDoubleQuotedSql (geometry_column);
-    sql = sqlite3_mprintf ("INSERT INTO gpkg_contents (table_name, data_type, "
+    sql = sqlite3_mprintf ("INSERT OR IGNORE INTO gpkg_contents (table_name, data_type, "
 			   "identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id) "
 			   "SELECT Lower(%Q), 'features', Lower(%Q), ' ', "
 			   "strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ', 'now'), Min(ST_MinX(\"%s\")), "

@@ -18,7 +18,7 @@ The Original Code is GeoPackage Extensions
 
 The Initial Developer of the Original Code is Brad Hards (bradh@frogmouth.net)
  
-Portions created by the Initial Developer are Copyright (C) 2012-2013
+Portions created by the Initial Developer are Copyright (C) 2012-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -181,6 +181,15 @@ fnct_gpkgAddGeometryColumn (sqlite3_context * context, int argc
                  "(table_name, data_type, srs_id, min_x, min_y, max_x, max_y) "
                  "VALUES (%Q, 'feature', %i, NULL, NULL, NULL, NULL)",
                  table, srid);
+
+    ret = sqlite3_exec (sqlite, sql_stmt, NULL, NULL, &errMsg);
+    sqlite3_free (sql_stmt);
+    if (ret != SQLITE_OK)
+      {
+	  sqlite3_result_error (context, errMsg, -1);
+	  sqlite3_free (errMsg);
+	  return;
+      }
 
     /* Add column definition to metadata table */
     sql_stmt = sqlite3_mprintf ("INSERT INTO gpkg_geometry_columns "

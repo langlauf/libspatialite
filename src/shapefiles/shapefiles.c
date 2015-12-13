@@ -2,7 +2,7 @@
 
  shapefiles.c -- implements shapefile support [import - export]
 
- version 4.2, 2014 July 25
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2013
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s): Brad Hards <bradh@frogmouth.net>
@@ -419,6 +419,7 @@ load_shapefile_ex2 (sqlite3 * sqlite, char *shp_path, char *table,
     int dup;
     int idup;
     int current_row;
+    int deleted = 0;
     char **col_name = NULL;
     unsigned char *blob;
     int blob_size;
@@ -684,7 +685,7 @@ load_shapefile_ex2 (sqlite3 * sqlite, char *shp_path, char *table,
 		xdummy = sqlite3_mprintf ("COL_%d", seed++);
 		spatialite_e
 		    ("Warning: duplicated fieldName \"%s\" in shapefile \"%s\": "
-		     "renaming the second occurence in table \"%s\" as \"%s\".\n",
+		     "renaming the second occurrence in table \"%s\" as \"%s\".\n",
 		     dummy, shp_path, table, xdummy);
 		dummy = xdummy;
 	    }
@@ -1100,6 +1101,13 @@ load_shapefile_ex2 (sqlite3 * sqlite, char *shp_path, char *table,
       {
 	  /* inserting rows from shapefile */
 	  ret = gaiaReadShpEntity_ex (shp, current_row, srid, text_dates);
+	  if (ret < 0)
+	    {
+		/* found a DBF deleted record */
+		current_row++;
+		deleted++;
+		continue;
+	    }
 	  if (!ret)
 	    {
 		if (!(shp->LastError))	/* normal SHP EOF */
@@ -1256,14 +1264,14 @@ load_shapefile_ex2 (sqlite3 * sqlite, char *shp_path, char *table,
 		return 0;
 	    }
 	  if (rows)
-	      *rows = current_row;
+	      *rows = current_row - deleted;
 	  if (verbose)
 	      spatialite_e
 		  ("\nInserted %d rows into '%s' from SHAPEFILE\n========\n",
-		   current_row, table);
+		   current_row - deleted, table);
 	  if (err_msg)
 	      sprintf (err_msg, "Inserted %d rows into '%s' from SHAPEFILE",
-		       current_row, table);
+		       current_row - deleted, table);
 	  return 1;
       }
 }
