@@ -1,7 +1,7 @@
 /* 
  stored_procedues.h -- SQL Procedures and Stored Procedures functions
   
- version 5.0, 2020 August 1
+ version 4.5, 2017 October 22
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2017-20
+Portions created by the Initial Developer are Copyright (C) 2017
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):

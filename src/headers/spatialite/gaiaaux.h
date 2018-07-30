@@ -1,7 +1,7 @@
 /* 
  gaiaaux.h -- Gaia common utility functions
   
- version 5.0, 2020 August 1
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -23,7 +23,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2020
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -382,12 +382,10 @@ extern "C"
 				      double *latitude);
 
 /**
- Return a DMS string - extended
+ Return a DMS string
 
  \param longitude the angle of longitude expressed in Decimal Degrees.
  \param latitude the angle of latitude expressed in Decimal Degrees.
- \param decimal_digits how many decimal digits must be preserved for
- representing Seconds.
 
  \return the corresponding DMS (Degrees/Minutes/Seconds) text string,
  or NULL on failure
@@ -397,26 +395,6 @@ extern "C"
  \note this function will return a dynamically allocated buffer created 
  by malloc(). 
  You are required to explicitly free() any string returned by this function.
- */
-    GAIAAUX_DECLARE char *gaiaConvertToDMSex (double longitude, double latitude,
-					      int decimal_digits);
-
-/**
- Return a DMS string
-
- \param longitude the angle of longitude expressed in Decimal Degrees.
- \param latitude the angle of latitude expressed in Decimal Degrees.
-
- \return the corresponding DMS (Degrees/Minutes/Seconds) text string,
- or NULL on failure
-
- \sa gaiaConvertToDMSex
-
- \note this function will return a dynamically allocated buffer created 
- by malloc(). 
- You are required to explicitly free() any string returned by this function.
- 
- \note this functions simply defaults to gaiaConvertToDMSex(lon, lat, 0)
  */
     GAIAAUX_DECLARE char *gaiaConvertToDMS (double longitude, double latitude);
 
@@ -518,20 +496,6 @@ extern "C"
  You are required to explicitly free() any string returned by this function.
  */
     GAIAAUX_DECLARE char *gaiaFileExtFromPath (const char *path);
-
-/**
- Return a text string containing no repeated whitespaces
-
- \param string the input string to be cleaned
-
- \return the corresponding string containing no repeated whitespaces,
- or NULL on failure
-
- \note this function will return a dynamically allocated buffer created 
- by malloc(). 
- You are required to explicitly free() any string returned by this function.
- */
-    GAIAAUX_DECLARE char *gaiaRemoveExtraSpaces (const char *string);
 
 #ifdef __cplusplus
 }

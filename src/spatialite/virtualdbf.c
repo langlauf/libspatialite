@@ -2,7 +2,7 @@
 
  virtualdbf.c -- SQLite3 extension [VIRTUAL TABLE accessing DBF]
 
- version 5.0, 2020 August 1
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2020
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -722,12 +722,7 @@ vdbf_eval_constraints (VirtualDbfCursorPtr cursor)
 					      break;
 #ifdef HAVE_DECL_SQLITE_INDEX_CONSTRAINT_LIKE
 					  case SQLITE_INDEX_CONSTRAINT_LIKE:
-					      ret =
-						  sqlite3_strlike (pC->txtValue,
-								   pFld->
-								   Value->TxtValue,
-								   0);
-					      if (ret == 0)
+					      if (ret >= 0)
 						  ok = 1;
 					      break;
 #endif

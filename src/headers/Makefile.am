@@ -27,6 +27,5 @@ nobase_include_HEADERS = spatialite.h \
 	spatialite/gaia_topology.h \
 	spatialite/gaia_network.h \
 	spatialite/gg_sequence.h \
-	spatialite/stored_procedures.h \
-	spatialite/geojson.h
+	spatialite/stored_procedures.h
 endif

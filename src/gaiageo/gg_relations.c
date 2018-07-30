@@ -2,7 +2,7 @@
 
  gg_relations.c -- Gaia spatial relations
     
- version 5.0, 2020 August 1
+ version 4.3, 2015 June 29
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2020
+Portions created by the Initial Developer are Copyright (C) 2008-2015
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -2063,11 +2063,6 @@ gaiaGeometryIntersection (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
     GEOSGeom_destroy (g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty (g3) == 1)
-      {
-	  GEOSGeom_destroy (g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2124,11 +2119,6 @@ gaiaGeometryIntersection_r (const void *p_cache, gaiaGeomCollPtr geom1,
     GEOSGeom_destroy_r (handle, g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g3) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2163,13 +2153,6 @@ gaiaGeometryUnion (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
     g3 = GEOSUnion (g1, g2);
     GEOSGeom_destroy (g1);
     GEOSGeom_destroy (g2);
-    if (g3 == NULL)
-	return NULL;
-    if (GEOSisEmpty (g3) == 1)
-      {
-	  GEOSGeom_destroy (g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2228,13 +2211,6 @@ gaiaGeometryUnion_r (const void *p_cache, gaiaGeomCollPtr geom1,
     g3 = GEOSUnion_r (handle, g1, g2);
     GEOSGeom_destroy_r (handle, g1);
     GEOSGeom_destroy_r (handle, g2);
-    if (g3 == NULL)
-	return NULL;
-    if (GEOSisEmpty_r (handle, g3) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2308,11 +2284,6 @@ gaiaUnionCascaded (gaiaGeomCollPtr geom)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	result = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2391,11 +2362,6 @@ gaiaUnionCascaded_r (const void *p_cache, gaiaGeomCollPtr geom)
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	result = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2432,11 +2398,6 @@ gaiaGeometryDifference (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
     GEOSGeom_destroy (g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty (g3) == 1)
-      {
-	  GEOSGeom_destroy (g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2488,11 +2449,6 @@ gaiaGeometryDifference_r (const void *p_cache, gaiaGeomCollPtr geom1,
     GEOSGeom_destroy_r (handle, g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g3) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2529,11 +2485,6 @@ gaiaGeometrySymDifference (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
     GEOSGeom_destroy (g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty (g3) == 1)
-      {
-	  GEOSGeom_destroy (g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2585,11 +2536,6 @@ gaiaGeometrySymDifference_r (const void *p_cache, gaiaGeomCollPtr geom1,
     GEOSGeom_destroy_r (handle, g2);
     if (!g3)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g3) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g3);
-	  return NULL;
-      }
     if (geom1->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g3);
     else if (geom1->DimensionModel == GAIA_XY_M)
@@ -2623,11 +2569,6 @@ gaiaBoundary (gaiaGeomCollPtr geom)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2675,11 +2616,6 @@ gaiaBoundary_r (const void *p_cache, gaiaGeomCollPtr geom)
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2715,11 +2651,6 @@ gaiaGeomCollCentroid (gaiaGeomCollPtr geom, double *x, double *y)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return 0;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return 0;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2777,11 +2708,6 @@ gaiaGeomCollCentroid_r (const void *p_cache, gaiaGeomCollPtr geom, double *x,
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return 0;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return 0;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2824,11 +2750,6 @@ gaiaGetPointOnSurface (gaiaGeomCollPtr geom, double *x, double *y)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return 0;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return 0;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -2886,11 +2807,6 @@ gaiaGetPointOnSurface_r (const void *p_cache, gaiaGeomCollPtr geom, double *x,
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return 0;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return 0;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3474,11 +3390,6 @@ gaiaGeomCollSimplify (gaiaGeomCollPtr geom, double tolerance)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3527,11 +3438,6 @@ gaiaGeomCollSimplify_r (const void *p_cache, gaiaGeomCollPtr geom,
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3565,11 +3471,6 @@ gaiaGeomCollSimplifyPreserveTopology (gaiaGeomCollPtr geom, double tolerance)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3618,11 +3519,6 @@ gaiaGeomCollSimplifyPreserveTopology_r (const void *p_cache,
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3656,11 +3552,6 @@ gaiaConvexHull (gaiaGeomCollPtr geom)
     GEOSGeom_destroy (g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3708,11 +3599,6 @@ gaiaConvexHull_r (const void *p_cache, gaiaGeomCollPtr geom)
     GEOSGeom_destroy_r (handle, g1);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3736,31 +3622,16 @@ gaiaGeomCollBuffer (gaiaGeomCollPtr geom, double radius, int points)
 #ifndef GEOS_USE_ONLY_R_API	/* obsolete versions non fully thread-safe */
     GEOSGeometry *g1;
     GEOSGeometry *g2;
-    GEOSBufferParams *params = NULL;
     gaiaResetGeosMsg ();
     if (!geom)
 	return NULL;
     if (gaiaIsToxic (geom))
 	return NULL;
     g1 = gaiaToGeos (geom);
-/* setting up Buffer params */
-    params = GEOSBufferParams_create ();
-    GEOSBufferParams_setEndCapStyle (params, GEOSBUF_CAP_ROUND);
-    GEOSBufferParams_setJoinStyle (params, GEOSBUF_JOIN_ROUND);
-    GEOSBufferParams_setMitreLimit (params, 5.0);
-    GEOSBufferParams_setQuadrantSegments (params, points);
-    GEOSBufferParams_setSingleSided (params, 0);
-
-    g2 = GEOSBufferWithParams (g1, params, radius);
+    g2 = GEOSBuffer (g1, radius, points);
     GEOSGeom_destroy (g1);
-    GEOSBufferParams_destroy (params);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty (g2) == 1)
-      {
-	  GEOSGeom_destroy (g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ (g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -3788,11 +3659,9 @@ gaiaGeomCollBuffer_r (const void *p_cache, gaiaGeomCollPtr geom, double radius,
     gaiaGeomCollPtr geo;
     GEOSGeometry *g1;
     GEOSGeometry *g2;
-    GEOSBufferParams *params = NULL;
     struct splite_internal_cache *cache =
 	(struct splite_internal_cache *) p_cache;
     GEOSContextHandle_t handle = NULL;
-    int quadsegs = 30;
     if (cache == NULL)
 	return NULL;
     if (cache->magic1 != SPATIALITE_CACHE_MAGIC1
@@ -3807,30 +3676,10 @@ gaiaGeomCollBuffer_r (const void *p_cache, gaiaGeomCollPtr geom, double radius,
     if (gaiaIsToxic_r (cache, geom))
 	return NULL;
     g1 = gaiaToGeos_r (cache, geom);
-/* setting up Buffer params */
-    params = GEOSBufferParams_create_r (handle);
-    GEOSBufferParams_setEndCapStyle_r (handle, params,
-				       cache->buffer_end_cap_style);
-    GEOSBufferParams_setJoinStyle_r (handle, params, cache->buffer_join_style);
-    GEOSBufferParams_setMitreLimit_r (handle, params,
-				      cache->buffer_mitre_limit);
-    if (points > 0)
-	quadsegs = points;
-    else if (cache->buffer_quadrant_segments > 0)
-	quadsegs = cache->buffer_quadrant_segments;
-    GEOSBufferParams_setQuadrantSegments_r (handle, params, quadsegs);
-    GEOSBufferParams_setSingleSided_r (handle, params, 0);
-
-    g2 = GEOSBufferWithParams_r (handle, g1, params, radius);
+    g2 = GEOSBuffer_r (handle, g1, radius, points);
     GEOSGeom_destroy_r (handle, g1);
-    GEOSBufferParams_destroy_r (handle, params);
     if (!g2)
 	return NULL;
-    if (GEOSisEmpty_r (handle, g2) == 1)
-      {
-	  GEOSGeom_destroy_r (handle, g2);
-	  return NULL;
-      }
     if (geom->DimensionModel == GAIA_XY_Z)
 	geo = gaiaFromGeos_XYZ_r (cache, g2);
     else if (geom->DimensionModel == GAIA_XY_M)
@@ -4280,7 +4129,7 @@ gaiaPolygonizeCommon (const void *cache, GEOSContextHandle_t handle,
       }
 
 /* identifying valid Polygons [excluding holes] */
-    valid_polygons = malloc (sizeof (char *) * items);
+    valid_polygons = malloc (items);
     for (ig = 0; ig < items; ig++)
 	valid_polygons[ig] = 'Y';
     for (ig = 0; ig < items; ig++)
