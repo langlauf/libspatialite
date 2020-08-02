@@ -14,9 +14,6 @@
 /* Should be defined in order to enable LIBXML2 support. */
 #define ENABLE_LIBXML2 1
 
-/* Should be defined in order to enable MiniZIP support. */
-/* #undef ENABLE_MINIZIP */
-
 /* Should be defined in order to enable RTTOPO support. */
 #define ENABLE_RTTOPO 1
 
@@ -158,7 +155,7 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
-/* #undef HAVE_UNISTD_H */
+#define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -208,7 +205,7 @@
 #define PACKAGE_NAME "libspatialite"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libspatialite 5.0.0"
+#define PACKAGE_STRING "libspatialite 5.0.0-beta1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libspatialite"
@@ -217,7 +214,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.0.0"
+#define PACKAGE_VERSION "5.0.0-beta1"
 
 /* Should be defined in order to enable PROJ.6 support. */
 #define PROJ_NEW 1
@@ -235,7 +232,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "5.0.0"
+#define VERSION "5.0.0-beta1"
 
 /* Must be =64 in order to enable huge-file support. */
 #define _FILE_OFFSET_BITS 64

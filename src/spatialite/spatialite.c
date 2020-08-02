@@ -53248,7 +53248,7 @@ init_spatialite_virtualtables (void *p_db, const void *p_cache)
 #endif /* end GEOS conditional */
 
 #ifdef ENABLE_GEOPACKAGE	/* only if GeoPackage support is enabled */
-/* initializing the VirtualGPKG  extension */
+/* initializing the VirtualFDO  extension */
     virtualgpkg_extension_init (db);
 #endif /* end GEOPACKAGE conditional */
 
@@ -53310,46 +53310,41 @@ spatialite_splash_screen (int verbose)
 		spatialite_i
 		    ("\t- 'VirtualShape'\t[direct Shapefile access]\n");
 		spatialite_i ("\t- 'VirtualDbf'\t\t[direct DBF access]\n");
-		spatialite_i ("\t- 'VirtualText'\t\t[direct CSV/TXT access]\n");
-		spatialite_i ("\t- 'VirtualGeoJSON'\t\t[direct GeoJSON access]\n");
 #ifndef OMIT_FREEXL
 		spatialite_i ("\t- 'VirtualXL'\t\t[direct XLS access]\n");
 #endif /* end FreeXL conditional */
+		spatialite_i ("\t- 'VirtualText'\t\t[direct CSV/TXT access]\n");
 #endif /* end ICONV conditional */
 		spatialite_i
-		    ("\t- 'VirtualNetwork'\t[Dijkstra shortest path - obsolete]\n");
+		    ("\t- 'VirtualNetwork'\t[Dijkstra shortest path]\n");
 		spatialite_i ("\t- 'RTree'\t\t[Spatial Index - R*Tree]\n");
 		spatialite_i
 		    ("\t- 'MbrCache'\t\t[Spatial Index - MBR cache]\n");
 		spatialite_i
-		    ("\t- 'VirtualFDO'\t\t[FDO-OGR interoperability]\n");
-		spatialite_i ("\t- 'VirtualBBox'\t\t[BoundingBox tables]\n");
-		spatialite_i
 		    ("\t- 'VirtualSpatialIndex'\t[R*Tree metahandler]\n");
 		spatialite_i
 		    ("\t- 'VirtualElementary'\t[ElemGeoms metahandler]\n");
-		    
-#ifndef OMIT_GEOS		/* only if GEOS is supported */
-/* initializing the VirtualRouting  extension */
-		spatialite_i
-		    ("\t- 'VirtualRouting'\t[Dijkstra shortest path - advanced]\n");
+
 #ifndef OMIT_KNN		/* only if KNN is enabled */
-/* initializing the VirtualKNN  extension */spatialite_i
+		spatialite_i
 		    ("\t- 'VirtualKNN'\t[K-Nearest Neighbors metahandler]\n");
 #endif /* end KNN conditional */
-#endif /* end GEOS conditional */
-
-#ifdef ENABLE_GEOPACKAGE	/* VirtualGPKG is supported */
-		spatialite_i
-		    ("\t- 'VirtualGPKG'\t[OGC GeoPackage interoperability]\n");
-#endif
-		spatialite_i ("\t- 'SpatiaLite'\t\t[Spatial SQL - OGC]\n");
-	    }
 
 #ifdef ENABLE_LIBXML2		/* VirtualXPath is supported */
 		spatialite_i
 		    ("\t- 'VirtualXPath'\t[XML Path Language - XPath]\n");
 #endif /* end including LIBXML2 */
+
+		spatialite_i
+		    ("\t- 'VirtualFDO'\t\t[FDO-OGR interoperability]\n");
+
+#ifdef ENABLE_GEOPACKAGE	/* VirtualGPKG is supported */
+		spatialite_i
+		    ("\t- 'VirtualGPKG'\t[OGC GeoPackage interoperability]\n");
+#endif
+		spatialite_i ("\t- 'VirtualBBox'\t\t[BoundingBox tables]\n");
+		spatialite_i ("\t- 'SpatiaLite'\t\t[Spatial SQL - OGC]\n");
+	    }
 
 #ifndef OMIT_PROJ		/* PROJ.4 version */
 	  if (verbose)
