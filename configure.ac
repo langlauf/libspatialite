@@ -2,13 +2,13 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(libspatialite, 5.0.0-beta0, a.furieri@lqt.it)
+AC_INIT(libspatialite, 5.0.1, a.furieri@lqt.it)
 AC_LANG(C)
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign no-define])
 AM_MAINTAINER_MODE
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(./fakeconfig.h ./config.h ./src/headers/spatialite/gaiaconfig.h ./config-msvc.h ./src/headers/spatialite/gaiaconfig-msvc.h)
 
 # enabling huge-file support (64 bit file pointers)
 AH_TEMPLATE([_LARGE_FILE],
@@ -35,6 +35,10 @@ AH_TEMPLATE([GEOS_REENTRANT],
             [Should be defined in order to enable GEOS_REENTRANT (fully thread-safe).])
 AH_TEMPLATE([GEOS_ONLY_REENTRANT],
             [Should be defined in order to fully disable GEOS non-thread-safe API.])
+AH_TEMPLATE([GEOS_370],
+            [Should be defined in order to enable GEOS_370 support.])
+AH_TEMPLATE([PROJ_NEW],
+            [Should be defined in order to enable PROJ.6 support.])
 AH_TEMPLATE([ENABLE_RTTOPO],
             [Should be defined in order to enable RTTOPO support.])
 AH_TEMPLATE([ENABLE_GCP],
@@ -55,10 +59,14 @@ AH_TEMPLATE([OMIT_FREEXL],
             [Should be defined in order to disable FREEXL support.])
 AH_TEMPLATE([ENABLE_LIBXML2],
             [Should be defined in order to enable LIBXML2 support.])
+AH_TEMPLATE([ENABLE_MINIZIP],
+            [Should be defined in order to enable MiniZIP support.])
 AH_TEMPLATE([ENABLE_GEOPACKAGE],
             [Should be defined in order to enable GeoPackage support.])
-AH_TEMPLATE([TARGET_CPU],
+AH_TEMPLATE([SPATIALITE_TARGET_CPU],
             [Should contain a text-string describing the intended target CPU])
+AH_TEMPLATE([SPATIALITE_VERSION],
+            [the Version of this package.])
 AH_TEMPLATE([HAVE_DECL_SQLITE_INDEX_CONSTRAINT_LIKE],
             [depending on SQLite library version.])
 
@@ -137,17 +145,24 @@ AC_CONFIG_FILES([Makefile \
 		test/Makefile \
 		test/sql_stmt_tests/Makefile \
 		test/sql_stmt_geos_tests/Makefile \
+		test/sql_stmt_geos_380/Makefile \
+		test/sql_stmt_geos_non380/Makefile \
 		test/sql_stmt_geosadvanced_tests/Makefile \
 		test/sql_stmt_geopackage_tests/Makefile \
 		test/sql_stmt_gpkg_epsg492_tests/Makefile \
 		test/sql_stmt_gpkg_epsg493_tests/Makefile \
+		test/sql_stmt_gpkg_epsg600_tests/Makefile \
 		test/sql_stmt_proj_tests/Makefile \
 		test/sql_stmt_proj492_tests/Makefile \
 		test/sql_stmt_proj493_tests/Makefile \
+		test/sql_stmt_proj600_tests/Makefile \
+		test/sql_stmt_proj720_tests/Makefile \
+		test/sql_stmt_proj600security_tests/Makefile \
 		test/sql_stmt_mathsql_tests/Makefile \
 		test/sql_stmt_rtgeom_tests/Makefile \
 		test/sql_stmt_rttopo_tests/Makefile \
 		test/sql_stmt_libxml2_tests/Makefile \
+		test/sql_stmt_libxml2_rttopo_tests/Makefile \
 		test/sql_stmt_security_tests/Makefile \
 		test/sql_stmt_xmlsec_tests/Makefile \
 		test/sql_stmt_freexl_tests/Makefile \
@@ -161,17 +176,33 @@ AC_CONFIG_FILES([Makefile \
 		test/sql_stmt_routing_tests/Makefile \
 		test/sql_stmt_logfile_tests/Makefile \
 		test/sql_stmt_iconv_tests/Makefile \
+		test/sql_stmt_proc_tests/Makefile \
 		test/sql_stmt_point_geom/Makefile \
 		test/sql_stmt_tiny_point/Makefile \
 		test/sql_stmt_postgres_tests/Makefile \
+		test/sql_stmt_geos370_tests/Makefile \
+		test/sql_stmt_renamenew_tests/Makefile \
+		test/sql_stmt_renameold_tests/Makefile \
+		test/sql_stmt_bufoptsnew_tests/Makefile \
+		test/sql_stmt_bufoptsold_tests/Makefile \
+		test/sql_stmt_minizip/Makefile \
+		test/sql_stmt_zip_proj6/Makefile \
+		test/sql_stmt_geos_390/Makefile \
+		test/sql_stmt_geos_non390/Makefile \
+		test/sql_stmt_rtgeom_390/Makefile \
+		test/sql_stmt_rtgeom_non390/Makefile \
+		test/sql_stmt_voronoj_390/Makefile \
+		test/sql_stmt_voronoj_non390/Makefile \
 		examples/Makefile \
 		Doxyfile \
 		spatialite.pc])
 
 # exporting the TARGET_CPU string
 splite_cpu=`$CC -dumpmachine`
-AC_DEFINE_UNQUOTED([TARGET_CPU], ["$splite_cpu"])
+AC_DEFINE_UNQUOTED([SPATIALITE_TARGET_CPU], ["$splite_cpu"])
 
+# exporting the VERSION string
+AC_DEFINE_UNQUOTED([SPATIALITE_VERSION], ["$PACKAGE_VERSION"])
 
 #-----------------------------------------------------------------------
 #   --enable-mathsql
@@ -217,9 +248,13 @@ AC_ARG_ENABLE(proj, [AS_HELP_STRING(
   [--enable-proj], [enables PROJ.4 inclusion [default=yes]])],
   [], [enable_proj=yes])
 if test x"$enable_proj" != "xno"; then
-  AC_CHECK_HEADERS(proj_api.h,, [AC_MSG_ERROR([cannot find proj_api.h, bailing out])])
-  AC_SEARCH_LIBS(pj_init_plus,proj,,AC_MSG_ERROR(['libproj' is required but it doesn't seem to be installed on this system.]),-lm)
-  AC_SEARCH_LIBS(pj_init_ctx,proj,,AC_MSG_ERROR(['libproj' is required but the version on this system does not support the required features (Version 4.8.0 or later is needed).]),-lm)
+  AC_CHECK_HEADERS(proj.h, [proj_new_incl=1], 
+	[AC_CHECK_HEADERS(proj_api.h, [proj_new_incl=0], [AC_MSG_ERROR([cannot find proj_api.h, bailing out])])])
+  AC_SEARCH_LIBS(proj_normalize_for_visualization, proj, [proj_new_lib=1],
+	[AC_SEARCH_LIBS(pj_init_plus, proj, [proj_new_lib=0], [AC_MSG_ERROR(['libproj' is required but it doesn't seem to be installed on this system.])], [-lm -lpthread -lsqlite3])])
+  if test $proj_new_incl -eq 1 && test $proj_new_lib -eq 1; then
+    AC_DEFINE(PROJ_NEW)
+  fi
 else
   AC_DEFINE(OMIT_PROJ)
 fi
@@ -255,6 +290,7 @@ if test x"$enable_freexl" != "xno"; then
 else
   AC_DEFINE(OMIT_FREEXL)
 fi
+
 #-----------------------------------------------------------------------
 
 #-----------------------------------------------------------------------
@@ -321,8 +357,8 @@ if test x"$enable_geos" != "xno"; then
   #   --enable-controlpoints
   #
   AC_ARG_ENABLE(gcp, [AS_HELP_STRING(
-	  [--enable-gcp], [enables Control Points (from Grass GIS) [default=no]])],
-	  [], [enable_gcp=no])
+	  [--enable-gcp], [enables Control Points (from Grass GIS) [default=yes]])],
+	  [], [enable_gcp=yes])
   if test x"$enable_gcp" != "xno"; then
 	  AC_DEFINE(ENABLE_GCP)
   fi
@@ -360,11 +396,22 @@ if test x"$enable_geos" != "xno"; then
   fi
 
   #-----------------------------------------------------------------------
+  #   --enable-geos370
+  #
+  AC_ARG_ENABLE(geos370, [AS_HELP_STRING(
+	  [--enable-geos370], [enables GEOS 3.7.0 features [default=yes]])],
+	  [], [enable_geos370=yes])
+  if test x"$enable_geos370" != "xno"; then
+	  AC_SEARCH_LIBS(GEOSFrechetDistance_r,geos_c,,AC_MSG_ERROR(['libgeos_c' (>= v.3.7.0) is required but it doesn't seem to be installed on this system. You may need to try re-running configure with a --disable-geos370 parameter.]))
+	  AC_DEFINE(GEOS_370)
+  fi
+
+  #-----------------------------------------------------------------------
   #   --enable-rttopo
   #
   AC_ARG_ENABLE(rttopo, [AS_HELP_STRING(
-	  [--enable-rttopo], [enables RTTOPO support [default=no]])],
-	  [], [enable_rttopo=no])
+	  [--enable-rttopo], [enables RTTOPO support [default=yes]])],
+	  [], [enable_rttopo=yes])
   if test x"$enable_rttopo" != "xno"; then
 	  AC_CHECK_HEADERS(librttopo.h,, [AC_MSG_ERROR([cannot find librttopo.h, bailing out])])
 	  AC_SEARCH_LIBS(rtt_AddLineNoFace,rttopo,,AC_MSG_ERROR(['librttopo' (>= v.1.1.0) is required but it doesn't seem to be installed on this system. You may need to try re-running configure with a --disable-rttopo parameter.]))
@@ -385,6 +432,18 @@ if test x"$enable_libxml2" != "xno"; then
   AC_SUBST(LIBXML2_CFLAGS)
   AC_SUBST(LIBXML2_LIBS)
   AC_DEFINE(ENABLE_LIBXML2)
+fi
+
+#-----------------------------------------------------------------------
+#   --enable-minizip
+#
+AC_ARG_ENABLE(minizip, [AS_HELP_STRING(
+  [--enable-minizip], [enables MiniZIP inclusion [default=yes]])],
+  [], [enable_minizip=yes])
+if test x"$enable_minizip" != "xno"; then
+  AC_CHECK_HEADERS(minizip/unzip.h,, [AC_MSG_ERROR([cannot find minizip/unzip.h, bailing out])])
+  AC_SEARCH_LIBS(unzLocateFile, minizip,,AC_MSG_ERROR(['libminizip' is required but it doesn't seem to be installed on this system.]))
+  AC_DEFINE(ENABLE_MINIZIP)
 fi
 
 #-----------------------------------------------------------------------

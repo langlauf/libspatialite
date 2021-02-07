@@ -18,7 +18,7 @@ redistribute it freely
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+#include <spatialite/gaiaconfig.h>
 
 /*
 these headers are required in order to support
@@ -200,8 +200,8 @@ main (int argc, char *argv[])
     gaiaOutBuffer wkt;
     int ret;
     sqlite3 *handle;
-    void *cache;
-
+    void *cache; 
+    
     if (argc > 1 || argv[0] == NULL)
 	argc = 1;		/* silencing stupid compiler warnings */
 

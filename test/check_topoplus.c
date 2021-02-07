@@ -46,7 +46,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+#include <spatialite/gaiaconfig.h>
 
 #include "sqlite3.h"
 #include "spatialite.h"
@@ -447,7 +447,7 @@ do_level9_tests (sqlite3 * handle, int *retcode)
       }
     if (strcmp
 	(err_msg,
-	 "SQL/MM Spatial exception - invalid Point (mismatching SRID od dimensions).")
+	 "SQL/MM Spatial exception - invalid Point (mismatching SRID or dimensions).")
 	!= 0)
       {
 	  fprintf (stderr,
@@ -473,7 +473,7 @@ do_level9_tests (sqlite3 * handle, int *retcode)
       }
     if (strcmp
 	(err_msg,
-	 "SQL/MM Spatial exception - invalid Point (mismatching SRID od dimensions).")
+	 "SQL/MM Spatial exception - invalid Point (mismatching SRID or dimensions).")
 	!= 0)
       {
 	  fprintf (stderr,
@@ -563,7 +563,7 @@ do_level9_tests (sqlite3 * handle, int *retcode)
       }
     if (strcmp
 	(err_msg,
-	 "SQL/MM Spatial exception - invalid Line (mismatching SRID od dimensions).")
+	 "SQL/MM Spatial exception - invalid Line (mismatching SRID or dimensions).")
 	!= 0)
       {
 	  fprintf (stderr,
@@ -590,7 +590,7 @@ do_level9_tests (sqlite3 * handle, int *retcode)
       }
     if (strcmp
 	(err_msg,
-	 "SQL/MM Spatial exception - invalid Line (mismatching SRID od dimensions).")
+	 "SQL/MM Spatial exception - invalid Line (mismatching SRID or dimensions).")
 	!= 0)
       {
 	  fprintf (stderr,
@@ -4319,11 +4319,11 @@ main (int argc, char *argv[])
       }
 
     ret =
-	sqlite3_exec (handle, "SELECT InitSpatialMetadata(1)", NULL, NULL,
+	sqlite3_exec (handle, "SELECT InitSpatialMetadataFull(1)", NULL, NULL,
 		      &err_msg);
     if (ret != SQLITE_OK)
       {
-	  fprintf (stderr, "InitSpatialMetadata() error: %s\n", err_msg);
+	  fprintf (stderr, "InitSpatialMetadataFull() error: %s\n", err_msg);
 	  sqlite3_free (err_msg);
 	  sqlite3_close (handle);
 	  return -3;

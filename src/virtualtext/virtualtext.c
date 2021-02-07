@@ -2,7 +2,7 @@
 
  virtualtext.c -- SQLite3 extension [VIRTUAL TABLE accessing CSV/TXT]
 
- version 4.3, 2015 June 29
+ version 5.0, 2020 August 1
 
  Author: Sandro Furieri a.furieri@lqt.it
 
@@ -24,7 +24,7 @@ The Original Code is the SpatiaLite library
 
 The Initial Developer of the Original Code is Alessandro Furieri
  
-Portions created by the Initial Developer are Copyright (C) 2008-2015
+Portions created by the Initial Developer are Copyright (C) 2008-2021
 the Initial Developer. All Rights Reserved.
 
 Contributor(s):
@@ -61,7 +61,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <spatialite/sqlite.h>
 #include <spatialite/debug.h>
 
-#include <spatialite/spatialite.h>
+#include <spatialite/spatialite_ext.h>
 #include <spatialite/gaiaaux.h>
 #include <spatialite/gaiageo.h>
 
@@ -1054,7 +1054,11 @@ gaiaTextReaderAlloc (const char *path, char field_separator,
 /* allocating the main TXT-Reader */
     int col;
     gaiaTextReaderPtr reader;
+#ifdef _WIN32
+    FILE *in = gaia_win_fopen (path, "rb");	/* opening the input file */
+#else
     FILE *in = fopen (path, "rb");	/* opening the input file */
+#endif
     if (in == NULL)
 	return NULL;
 
@@ -1189,8 +1193,13 @@ vrttxt_is_scientific_double (const char *value, char decimal_separator)
 		else
 		    invalid++;
 	    }
-	  else if (*p == 'E' || *p == 'e')
-	      exp++;
+	  else if ((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z'))
+	    {
+		if (*p == 'E' || *p == 'e')
+		    exp++;
+		else
+		    invalid++;
+	    }
 	  else if (*p == '-' || *p == '+')
 	    {
 		if (exp && !digit3)
@@ -1611,6 +1620,9 @@ gaiaTextReaderParse (gaiaTextReaderPtr txt)
     int ind;
     int i2;
     int c;
+    int c1 = EOF;
+    int c2 = EOF;
+    int c3 = EOF;
     int prevchar = '\0';
     int masked = 0;
     int token_start = 1;
@@ -1620,8 +1632,34 @@ gaiaTextReaderParse (gaiaTextReaderPtr txt)
     vrttxt_line_init (&line, 0);
     txt->current_buf_off = 0;
 
-    while ((c = getc (txt->text_file)) != EOF)
+/* attempting to discard an eventual UTF-8 BOM */
+    c1 = getc (txt->text_file);
+    c2 = getc (txt->text_file);
+    c3 = getc (txt->text_file);
+    if (c1 == 0xEF && c2 == 0xBB && c3 == 0xBF)
       {
+	  /* all right, it's a BOM */
+	  offset = 3;
+	  line.offset = 3;
+      }
+    else
+	rewind (txt->text_file);
+
+    while (1)
+      {
+	  c = getc (txt->text_file);
+	  if (c == EOF)
+	    {
+		/* EOF found */
+		if (txt->current_buf_off > 0)
+		  {
+		      /* the last line in the input file is not properly terminated */
+		      vrttxt_add_field (&line, offset);
+		      vrttxt_line_end (&line, offset);
+		      vrttxt_add_line (txt, &line);
+		  }
+		break;
+	    }
 	  if (c == txt->text_separator)
 	    {
 		if (masked)
@@ -1678,6 +1716,8 @@ gaiaTextReaderParse (gaiaTextReaderPtr txt)
 		offset++;
 		continue;
 	    }
+	  if (c == EOF)
+	      break;
 	  if (c == txt->field_separator)
 	    {
 		if (masked)

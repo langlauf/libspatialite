@@ -47,7 +47,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+#include <spatialite/gaiaconfig.h>
 #include "sqlite3.h"
 #include "spatialite.h"
 
@@ -82,11 +82,11 @@ main (int argc, char *argv[])
     spatialite_init_ex (db_handle, cache, 0);
 
     ret =
-	sqlite3_exec (db_handle, "SELECT InitSpatialMetadata(1)", NULL, NULL,
+	sqlite3_exec (db_handle, "SELECT InitSpatialMetadataFull(1)", NULL, NULL,
 		      &err_msg);
     if (ret != SQLITE_OK)
       {
-	  fprintf (stderr, "InitSpatialMetadata() error: %s\n", err_msg);
+	  fprintf (stderr, "InitSpatialMetadataFull() error: %s\n", err_msg);
 	  sqlite3_free (err_msg);
 	  sqlite3_close (db_handle);
 	  return -2;
@@ -102,7 +102,7 @@ main (int argc, char *argv[])
 
     sql =
 	sqlite3_mprintf
-	("create VIRTUAL TABLE %s USING VirtualXL(\"testcase1.xls\");", table);
+	("create VIRTUAL TABLE %s USING VirtualXL('testcase1.xls');", table);
     ret = sqlite3_exec (db_handle, sql, NULL, NULL, &err_msg);
     sqlite3_free (sql);
     if (ret != SQLITE_OK)
@@ -113,7 +113,7 @@ main (int argc, char *argv[])
       }
 
     sql = sqlite3_mprintf ("select col_2, col_4, col_5, col_7, rowid "
-			   "from %s WHERE col_2 = \"Canal Creek\";", table);
+			   "from %s WHERE col_2 = 'Canal Creek';", table);
     ret =
 	sqlite3_get_table (db_handle, sql, &results, &rows, &columns, &err_msg);
     sqlite3_free (sql);
@@ -169,7 +169,7 @@ main (int argc, char *argv[])
 
     sql =
 	sqlite3_mprintf
-	("create VIRTUAL TABLE %s USING VirtualShape(\"shapetest1\", UTF-8, 4326);",
+	("create VIRTUAL TABLE %s USING VirtualShape('shapetest1', UTF-8, 4326);",
 	 table);
     ret = sqlite3_exec (db_handle, sql, NULL, NULL, &err_msg);
     sqlite3_free (sql);
@@ -369,7 +369,7 @@ main (int argc, char *argv[])
 
     sql =
 	sqlite3_mprintf
-	("create VIRTUAL TABLE %s USING VirtualNetwork(\"roads_net_data\");",
+	("create VIRTUAL TABLE %s USING VirtualNetwork('roads_net_data');",
 	 table);
     ret = sqlite3_exec (db_handle, sql, NULL, NULL, &err_msg);
     sqlite3_free (sql);

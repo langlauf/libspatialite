@@ -45,7 +45,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+#include <spatialite/gaiaconfig.h>
 
 #include "sqlite3.h"
 #include "spatialite.h"
@@ -461,11 +461,11 @@ main (int argc, char *argv[])
 #ifndef OMIT_KNN		/* only if KNN is enabled */
 
     ret =
-	sqlite3_exec (db_handle, "SELECT InitSpatialMetadata(1)", NULL, NULL,
+	sqlite3_exec (db_handle, "SELECT InitSpatialMetadataFull(1)", NULL, NULL,
 		      &err_msg);
     if (ret != SQLITE_OK)
       {
-	  fprintf (stderr, "InitSpatialMetadata() error: %s\n", err_msg);
+	  fprintf (stderr, "InitSpatialMetadataFull() error: %s\n", err_msg);
 	  sqlite3_free (err_msg);
 	  sqlite3_close (db_handle);
 	  return -2;
@@ -484,6 +484,14 @@ main (int argc, char *argv[])
 	  sqlite3_close (db_handle);
 	  return -4;
       }
+/* adding a second geometry column */
+    ret = add_second_geom (db_handle);
+    if (!ret)
+      {
+	  fprintf (stderr, "Add Second Geometry: unexpected failure !!!\n");
+	  sqlite3_close (db_handle);
+	  return -5;
+      }
 
 /* Creating the VirtualKNN table */
     ret = create_knn (db_handle);
@@ -491,7 +499,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "CREATE VIRTUAL TABLE knn: expected failure !!!\n");
 	  sqlite3_close (db_handle);
-	  return -5;
+	  return -6;
       }
 
 /* Testing KNN - #1 */
@@ -500,7 +508,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "Check KNN #1: unexpected failure\n");
 	  sqlite3_close (db_handle);
-	  return -6;
+	  return -7;
       }
 
 /* Testing KNN - #2 */
@@ -509,7 +517,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "Check KNN #2: unexpected failure\n");
 	  sqlite3_close (db_handle);
-	  return -7;
+	  return -8;
       }
 
 /* Testing KNN - #3 */
@@ -518,7 +526,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "Check KNN #3: unexpected success\n");
 	  sqlite3_close (db_handle);
-	  return -8;
+	  return -9;
       }
 
 /* creating a first SpatialView */
@@ -527,7 +535,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "Create Spatial View #1: unexpected failure !!!\n");
 	  sqlite3_close (db_handle);
-	  return -9;
+	  return -10;
       }
 
 /* Testing KNN - #4 */
@@ -536,7 +544,7 @@ main (int argc, char *argv[])
       {
 	  fprintf (stderr, "Check KNN #4: unexpected failure\n");
 	  sqlite3_close (db_handle);
-	  return -10;
+	  return -11;
       }
 
 /* Testing KNN - #5 */
@@ -544,15 +552,6 @@ main (int argc, char *argv[])
     if (!ret)
       {
 	  fprintf (stderr, "Check KNN #5: unexpected failure\n");
-	  sqlite3_close (db_handle);
-	  return -11;
-      }
-
-/* adding a second geometry column */
-    ret = add_second_geom (db_handle);
-    if (!ret)
-      {
-	  fprintf (stderr, "Add Second Geometry: unexpected failure !!!\n");
 	  sqlite3_close (db_handle);
 	  return -12;
       }
